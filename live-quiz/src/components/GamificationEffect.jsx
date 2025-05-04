@@ -5,12 +5,12 @@ const phrases = [
   {
     min: 15,
     text: 'Uhuuu! Ativou o modo Fingers Fly!! Deu a resposta antes do vocalista respirar!',
-    animation: 'fire',
+    animation: 'confetti',
   },
   {
     min: 10,
     text: 'Boa! Deu aquele estalo na mente! Descobriu a tempo!!',
-    animation: 'confetti',
+    animation: 'fire',
   },
   {
     min: 5,
@@ -87,7 +87,7 @@ function ZzzEffect() {
   // Emoji de sono
   return (
     <div className="gami-zzz">
-      <span style={{ fontSize: 46 }}>😴💤 Zzz...</span>
+      <span style={{ fontSize: 46 }}>😰🫨🫣</span>
     </div>
   );
 }

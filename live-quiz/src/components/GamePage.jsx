@@ -195,21 +195,6 @@ export default function GamePage() {
     }
   }, [fromRanking, nickname]);
 
-  // Efeito para garantir que a pontuação esteja sincronizada com o Firebase
-  useEffect(() => {
-    if (nickname && points !== null) {
-      const nickKey = typeof nickname === 'object' && nickname !== null ? nickname.name : nickname;
-      const playerId = localStorage.getItem('playerId_' + nickKey);
-      if (playerId) {
-        const playerRef = ref(db, `salaAtual/jogadores/${playerId}`);
-        update(playerRef, { 
-          points: points,
-          lastActive: Date.now()
-        });
-      }
-    }
-  }, [points, nickname]);
-
   useEffect(() => {
 
   }, []);

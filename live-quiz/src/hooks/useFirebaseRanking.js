@@ -3,7 +3,7 @@ import { ref, onValue, update, get, remove } from 'firebase/database';
 import { db } from '../services/firebase.js';
 import { useGame } from '../hooks/useGame.js';
 
-export function useFirebaseRanking(_roundId) {
+export function useFirebaseRanking(roundId) {
   const { nickname, points } = useGame();
   const [ranking, setRanking] = useState([]);
   const playerKeyRef = useRef(null);
@@ -19,6 +19,38 @@ export function useFirebaseRanking(_roundId) {
     }
     playerKeyRef.current = storedId;
   }, [nickname]);
+
+  // Sempre que montar, NÃO remova duplicados do mesmo nickname no Firebase
+  // Apenas registra o player normalmente, não exclua outros jogadores
+  // useEffect(() => {
+  //   if (!nickname || !playerKeyRef.current) return;
+  //   let nickKey = typeof nickname === 'object' && nickname !== null ? nickname.name : nickname;
+  //   const jogadoresRef = ref(db, 'salaAtual/jogadores');
+  //   get(jogadoresRef).then(snapshot => {
+  //     const data = snapshot.val() || {};
+  //     // Se houver MAIS de um registro do mesmo nickname, mantenha SOMENTE o de maior pontuação (ou o mais recente)
+  //     const sameNick = Object.entries(data).filter(([_, value]) => {
+  //       if (typeof value.nickname === 'object' && value.nickname !== null) {
+  //         return value.nickname.name === nickKey;
+  //       }
+  //       return value.nickname === nickKey;
+  //     });
+  //     if (sameNick.length > 1) {
+  //       // Ordena por pontos decrescente, depois criado mais recentemente
+  //       sameNick.sort((a, b) => b[1].points - a[1].points || b[1].createdAt - a[1].createdAt);
+  //       // Mantém só o primeiro (melhor)
+  //       const [keepId] = sameNick[0];
+  //       sameNick.slice(1).forEach(([id]) => {
+  //         remove(ref(db, `salaAtual/jogadores/${id}`));
+  //       });
+  //       // Atualiza o playerKeyRef se necessário
+  //       if (playerKeyRef.current !== keepId) {
+  //         localStorage.setItem('playerId_' + nickKey, keepId);
+  //         playerKeyRef.current = keepId;
+  //       }
+  //     }
+  //   });
+  // }, [nickname, playerKeyRef.current]);
 
   // Persistência explícita dos pontos no ranking (chamar manualmente na FinalRankingPage)
   const persistPlayerScore = async () => {
@@ -67,7 +99,7 @@ export function useFirebaseRanking(_roundId) {
     }
   };
 
-  // Registra jogador no ranking ao entrar na sala (nickname e pontos zerados)
+  // Registra jogador no ranking ao entrar na sala (nickname e pontos locais), mas só se ainda não existir
   const registerPlayerInRanking = async (customPoints) => {
     if (!nickname || !playerKeyRef.current) return;
     let nickKey = typeof nickname === 'object' && nickname !== null ? nickname.name : nickname;
@@ -78,24 +110,27 @@ export function useFirebaseRanking(_roundId) {
       safeNickname = 'Jogador';
     }
     
-    // Sempre registra com pontos zerados ao entrar na sala
-    const currentPoints = 0;
+    // Busca os pontos mais recentes (localStorage ou contexto)
+    let currentPoints = 0;
+    if (typeof customPoints === 'number' && !isNaN(customPoints)) {
+      currentPoints = customPoints;
+    } else if (typeof points === 'number' && !isNaN(points)) {
+      currentPoints = points;
+    } else {
+      // fallback: tenta pegar do localStorage
+      const storedPts = localStorage.getItem('points_' + nickKey);
+      if (storedPts && !isNaN(Number(storedPts))) {
+        currentPoints = Number(storedPts);
+      }
+    }
     
-    // Sempre registra/atualiza o jogador no ranking com pontos zerados
+    // Sempre registra/atualiza o jogador no ranking (nickname, pontos, timestamps)
     await update(playerRef, {
       nickname: safeNickname,
       points: currentPoints,
       createdAt: Date.now(),
       lastActive: Date.now()
     });
-    
-    // Atualiza o contexto para garantir que os pontos estejam zerados
-    if (typeof window !== 'undefined' && window.setPoints) {
-      window.setPoints(0);
-    }
-    
-    // Atualiza o localStorage também
-    localStorage.setItem('points_' + nickKey, 0);
     
     // Marca que o jogador entrou na rodada
     localStorage.setItem('entrouNaRodada', 'true');
@@ -126,41 +161,20 @@ export function useFirebaseRanking(_roundId) {
   }, []);
 
   // Função para remover explicitamente o player do ranking
-  const removePlayerFromRanking = async (playerToRemove = null) => {
+  const removePlayerFromRanking = async () => {
     try {
-      const playerIdToRemove = playerToRemove || playerKeyRef.current;
-      
-      // Verificação de segurança - retorna se não tiver jogador para remover
-      if (!playerIdToRemove) {
-        return false;
+      if (playerKeyRef.current) {
+        await remove(ref(db, `salaAtual/jogadores/${playerKeyRef.current}`));
       }
-      
-      // Se for um objeto com propriedade name, usa essa propriedade
-      const playerKey = typeof playerIdToRemove === 'object' && playerIdToRemove !== null ? 
-        (playerIdToRemove.name || '') : playerIdToRemove;
-      
-      // Só continua se tivermos uma chave válida
-      if (!playerKey || typeof playerKey !== 'string') {
-        return false;
-      }
-      
-      // Remove o jogador do Firebase
-      const jogadorRef = ref(db, `salaAtual/jogadores/${playerKey}`);
-      await remove(jogadorRef);
-      return true;
     } catch (err) {
-      return false;
+
     }
   };
 
-  // Remove jogador do ranking ao fechar aba ou sair da página, MAS APENAS se estiver na tela LiveRanking (não na FinalRanking)
+  // Remove jogador do ranking ao fechar aba ou sair da página
   useEffect(() => {
     const handleUnload = async () => {
-      // Só remove se não está na tela de FinalRanking (partida não foi finalizada)
-      const emFinalRanking = localStorage.getItem('finalRankingTimeout') === '1';
-      const concluiuPartida = localStorage.getItem('partidaConcluida') === 'true';
-      
-      if (playerKeyRef.current && !emFinalRanking && !concluiuPartida) {
+      if (playerKeyRef.current) {
         try {
           await remove(ref(db, `salaAtual/jogadores/${playerKeyRef.current}`));
         } catch (err) {
@@ -168,45 +182,11 @@ export function useFirebaseRanking(_roundId) {
         }
       }
     };
-    
-    // Também adiciona um evento de visibilidade para detectar quando a aba é ocultada (não apenas fechada)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // Armazena timestamp quando a aba foi ocultada, para remover após timeout
-        localStorage.setItem('liveRankingTabHidden', Date.now().toString());
-      } else if (document.visibilityState === 'visible') {
-        // Limpa o timestamp quando a aba é reaberta
-        localStorage.removeItem('liveRankingTabHidden');
-      }
-    };
-    
     window.addEventListener('beforeunload', handleUnload);
     window.addEventListener('unload', handleUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Timer para verificar se a aba está oculta por tempo suficiente para considerar abandono
-    const intervalId = setInterval(() => {
-      const hiddenTime = localStorage.getItem('liveRankingTabHidden');
-      if (hiddenTime && playerKeyRef.current) {
-        const elapsed = Date.now() - parseInt(hiddenTime, 10);
-        // Se a aba estiver oculta por mais de 30 segundos, remove o jogador (30s = 30000ms)
-        if (elapsed > 30000) {
-          const emFinalRanking = localStorage.getItem('finalRankingTimeout') === '1';
-          const concluiuPartida = localStorage.getItem('partidaConcluida') === 'true';
-          
-          if (!emFinalRanking && !concluiuPartida) {
-            remove(ref(db, `salaAtual/jogadores/${playerKeyRef.current}`));
-            localStorage.removeItem('liveRankingTabHidden'); // Evita remoções repetidas
-          }
-        }
-      }
-    }, 5000); // Verifica a cada 5 segundos
-    
     return () => {
       window.removeEventListener('beforeunload', handleUnload);
       window.removeEventListener('unload', handleUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearInterval(intervalId);
     };
   }, []);
 

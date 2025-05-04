@@ -1,12 +1,10 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { ref, onValue, update, set, get } from 'firebase/database';
 import { db } from '../services/firebase';
-import { useFirebaseRanking } from '../hooks/useFirebaseRanking';
 
 const GameContext = createContext();
 
 export function GameProvider({ children }) {
-  const { registerPlayerInRanking } = useFirebaseRanking();
   // Exponha setPoints no window para permitir reset dinâmico da pontuação
   if (typeof window !== 'undefined') {
     window.setPoints = (value) => setPoints(value);
@@ -95,13 +93,6 @@ export function GameProvider({ children }) {
   }, [points, nickname]);
 
   const nextSong = () => setCurrentSongIndex((prev) => prev + 1);
-
-  // Registra jogador no ranking quando entra na sala
-  useEffect(() => {
-    if (nickname) {
-      registerPlayerInRanking();
-    }
-  }, [nickname, registerPlayerInRanking]);
 
   useEffect(() => {
     if (nickname) {

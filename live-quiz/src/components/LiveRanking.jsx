@@ -2,10 +2,8 @@ import React from 'react';
 import './LiveRanking.css';
 import { useFirebaseRanking } from '../hooks/useFirebaseRanking';
 
-export default function LiveRanking({ playerKey }) {
-  // Obtém o roundId do localStorage ou usa um valor padrão
-  const roundId = localStorage.getItem('currentRoundId') || Date.now();
-  const { ranking } = useFirebaseRanking(roundId);
+export default function LiveRanking({ playerKey, refreshTrigger }) {
+  const { ranking } = useFirebaseRanking();
 
   // Polling removido: ranking agora é em tempo real via hook
 
