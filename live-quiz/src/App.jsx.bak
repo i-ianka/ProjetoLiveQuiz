@@ -1,9 +1,8 @@
 import { Routes, Route } from 'react-router-dom'; // <-- Só Routes e Route
 import { GameProvider } from './context/GameContext'; // <-- Certo
-import StartPage from "./components/Start/StartPage";
-import GamePage from "./components/Game/GamePage";
-import FinalRankingPage from "./components/Ranking/FinalRankingPage";
-
+import StartPage from './components/LoginPage';
+import GamePage from './components/GamePage';
+import FinalRankingPage from './components/FinalRankingPage';
 
 function App() {
   return (
