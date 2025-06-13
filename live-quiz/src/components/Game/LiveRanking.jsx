@@ -8,7 +8,6 @@ export default function LiveRanking({ playerKey, refreshTrigger }) {
   const { roundId } = useContext(GameContext);
   const { ranking } = useFirebaseRanking(roundId);
 
-  console.log('[DEBUG] Ranking recebido:', ranking);
 
   // Estado para detectar jogadores que saíram
   const lastRankingRef = useRef([]);

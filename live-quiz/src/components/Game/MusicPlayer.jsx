@@ -26,7 +26,7 @@ export default function MusicPlayer({
   useEffect(() => {
     // Reseta o estado do timer ao detectar um novo refreshTrigger
     if (refreshTrigger) {
-      console.log('[DEBUG] Resetando timer devido ao refreshTrigger');
+      // Resetando timer devido ao refreshTrigger
       setTimeLeft(20);
       hasTimeUpFired.current = false;
     }
@@ -60,38 +60,87 @@ export default function MusicPlayer({
   useEffect(() => {
     const inicioMusica = getInicioMusicaAtual();
     if (!inicioMusica) return;
+    
     const audio = audioRef.current;
     let isMounted = true;
-    const timer = setInterval(() => {
-      if (!isMounted) return;
-      const elapsed = Math.floor((Date.now() - inicioMusica) / 1000);
-      const newTimeLeft = Math.min(20, Math.max(0, 20 - elapsed)); // clamp para nunca passar de 20
-      setTimeLeft(newTimeLeft);
+    let animationFrameId = null;
+    let lastUpdateTime = 0;
+    const UPDATE_INTERVAL = 16; // ~60 FPS para maior precisão
+    
+    // Função para sincronizar o áudio com o timer
+    const syncAudioWithTimer = () => {
+      if (!isMounted || !inicioMusica || !audio) return null;
+      
+      const now = Date.now();
+      const elapsed = Math.max(0, (now - inicioMusica) / 1000); // Tempo em segundos com decimais, nunca negativo
+      const targetTime = Math.min(elapsed, 19.99);
+      
+      // Ajusta a posição do áudio para sincronizar com o timer
+      if (audio.readyState >= 2) { // HAVE_CURRENT_DATA ou superior
+        const currentTime = audio.currentTime;
+        // Só ajusta se a diferença for significativa para evitar estouros
+        if (Math.abs(currentTime - targetTime) > 0.1) {
+          audio.currentTime = targetTime;
+        }
+      }
+      
+      return { now, elapsed, timeLeft: Math.max(0, 20 - elapsed) };
+    };
+    
+    // Função para atualizar o timer
+    const updateTimer = (timestamp) => {
+      if (!isMounted || !inicioMusica) return;
+      
+      const now = timestamp || Date.now();
+      
+      // Limita a taxa de atualização para melhor desempenho
+      if (now - lastUpdateTime < UPDATE_INTERVAL) {
+        animationFrameId = requestAnimationFrame(updateTimer);
+        return;
+      }
+      lastUpdateTime = now;
+      
+      // Sincroniza o áudio e obtém o tempo atualizado
+      const syncResult = syncAudioWithTimer();
+      if (!syncResult) return;
+      
+      const { timeLeft: newTimeLeft } = syncResult;
+      
+      // Atualiza o estado com o tempo exato (sem arredondar)
+      setTimeLeft(prev => {
+        // Só atualiza se a diferença for maior que 0.05s para evitar renderizações desnecessárias
+        return Math.abs(prev - newTimeLeft) > 0.05 ? newTimeLeft : prev;
+      });
+      
+      // Atualiza o callback de tempo se fornecido
       if (onTimeUpdate) {
         onTimeUpdate(newTimeLeft);
       }
-      if (elapsed < 0 || newTimeLeft > 20) {
-        console.warn('[MusicPlayer] Timer inconsistente detectado!', {
-          musicaAtual,
-          musicStartTimestamp,
-          now: Date.now(),
-          inicioMusica,
-          elapsed,
-          newTimeLeft
-        });
-      }
+      
+      // Se o tempo acabou e ainda não foi disparado o evento
       if (newTimeLeft <= 0 && !hasTimeUpFired.current) {
         hasTimeUpFired.current = true;
-        clearInterval(timer);
+        cancelAnimationFrame(animationFrameId);
         if (audio && !audio.paused) audio.pause();
         if (onTimeUp) onTimeUp(0);
+        return;
       }
-    }, 1000);
+      
+      // Agenda o próximo frame
+      animationFrameId = requestAnimationFrame(updateTimer);
+    };
+    
+    // Atualiza imediatamente para evitar atraso inicial
+    updateTimer();
+    
+    // Configura o intervalo para atualizações suaves
+    const timer = setInterval(updateTimer, 100);
+    
     return () => {
       isMounted = false;
       clearInterval(timer);
     };
-  }, [musicStartTimestamp, musicUrl, musicaAtual]);
+  }, [musicStartTimestamp, musicUrl, musicaAtual, onTimeUpdate, onTimeUp]);
 
   const lastMusicUrl = useRef();
   const lastMusicaAtual = useRef();
@@ -100,28 +149,105 @@ export default function MusicPlayer({
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !musicUrl) return;
+    
     // Só reinicie se algum dos parâmetros realmente mudou
     const shouldReload =
       lastMusicUrl.current !== musicUrl ||
       lastMusicaAtual.current !== musicaAtual ||
       lastMusicStartTimestamp.current !== musicStartTimestamp;
+      
     if (!shouldReload) return;
+    
+    // Atualiza as referências
     lastMusicUrl.current = musicUrl;
     lastMusicaAtual.current = musicaAtual;
     lastMusicStartTimestamp.current = musicStartTimestamp;
+    
+    // Reseta o estado do timer
+    setTimeLeft(20);
+    hasTimeUpFired.current = false;
+    
+    // Configura o áudio
     audio.src = musicUrl;
-    audio.load();
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch((error) => {
-        if (error.name === 'NotAllowedError') {
-          setWaitingForUser(true);
-          setPlayError(error);
-        } else {
-          setPlayError(error);
+    audio.preload = 'auto';
+    
+    // Configura o volume inicial
+    audio.volume = isMuted ? 0 : 1;
+    
+    // Função para sincronizar o áudio com o timer
+    const syncAudioWithTimer = () => {
+      const inicioMusica = getInicioMusicaAtual();
+      if (inicioMusica) {
+        const now = Date.now();
+        const elapsed = (now - inicioMusica) / 1000;
+        const targetTime = Math.max(0, Math.min(elapsed, 19.99));
+        
+        // Ajusta a posição do áudio para sincronizar com o timer
+        if (Math.abs(audio.currentTime - targetTime) > 0.1) {
+          audio.currentTime = targetTime;
         }
-      });
-    }
+      }
+    };
+    
+    // Função para iniciar a reprodução
+    const startPlayback = () => {
+      // Primeiro sincroniza a posição do áudio
+      syncAudioWithTimer();
+      
+      // Depois inicia a reprodução
+      const playPromise = audio.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            // Sincroniza novamente após o play para garantir
+            setTimeout(syncAudioWithTimer, 50);
+            setWaitingForUser(false);
+            setPlayError(null);
+          })
+          .catch((error) => {
+            if (error.name === 'NotAllowedError' || error.name === 'NotSupportedError') {
+              setWaitingForUser(true);
+            }
+            setPlayError(error);
+          });
+      }
+    };
+    
+    // Configura os event listeners para sincronização
+    const onCanPlay = () => {
+      // Quando o áudio estiver pronto para tocar, sincroniza e inicia
+      syncAudioWithTimer();
+      startPlayback();
+    };
+    
+    const onPlaying = () => {
+      // Sincroniza periodicamente enquanto está tocando
+      syncAudioWithTimer();
+    };
+    
+    // Adiciona os listeners
+    audio.addEventListener('canplay', onCanPlay, { once: true });
+    audio.addEventListener('playing', onPlaying);
+    
+    // Tenta carregar o áudio
+    audio.load();
+    
+    // Timeout de segurança para garantir que a reprodução comece
+    const timeoutId = setTimeout(() => {
+      if (audio.readyState >= 2) { // HAVE_CURRENT_DATA
+        startPlayback();
+      }
+    }, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      audio.removeEventListener('canplay', onCanPlay);
+      audio.removeEventListener('playing', onPlaying);
+      if (!audio.paused) {
+        audio.pause();
+      }
+    };
     return () => {
       if (!audio.paused) {
         audio.pause();

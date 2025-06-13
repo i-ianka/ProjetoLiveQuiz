@@ -53,20 +53,16 @@ app.get('/playlist/:playlistId', async (req, res) => {
       // Retorna TODAS as músicas embaralhadas com preview (NÃO limita a 15)
       const validTracks = shuffledTracks.filter(track => track.preview);
 
-      console.log('Músicas embaralhadas retornadas pelo backend (todas com preview):', validTracks.map(track => track.title));
 
       res.json({ ...data, tracks: { data: validTracks } }); // Retorna todas as músicas válidas
     } else {
-      console.error('A playlist não contém músicas ou a estrutura da resposta está diferente:', data);
       res.status(400).json({ error: 'A playlist não contém músicas válidas.' });
     }
   } catch (error) {
-    console.error('Erro ao buscar playlist:', error);
     res.status(500).json({ error: 'Erro no servidor.' });
   }
 });
 
 // Inicializa o servidor
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
 });

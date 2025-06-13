@@ -33,7 +33,7 @@ export function GameProvider({ children }) {
   const [hasSavedHistory, setHasSavedHistory] = useState(false);
   const [roundId, setRoundId] = useState(0);
   useEffect(() => {
-    console.log('[GameContext] roundId mudou:', roundId);
+    // roundId mudou
   }, [roundId]);
 
   useEffect(() => {
@@ -82,14 +82,12 @@ export function GameProvider({ children }) {
           nickname,
           createdAt: Date.now()
         }).then(() => {
-          console.log('[GameContext] Pontuação e dados do jogador atualizados no Firebase:', {
-            points: newPoints, roundId, nickname, playerId
-          });
+          // Pontuação e dados do jogador atualizados no Firebase
         }).catch(error => {
           console.error('[GameContext] Erro ao atualizar pontuação no Firebase:', error);
         });
       } else {
-        console.warn('[GameContext] nickname não definido ao tentar adicionar pontos.');
+        // Aviso: nickname não definido ao tentar adicionar pontos
       }
       return newPoints;
     });

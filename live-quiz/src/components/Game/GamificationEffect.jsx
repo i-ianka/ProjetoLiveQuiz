@@ -49,28 +49,14 @@ const phrases = [
 ];
 
 function getEffectByTime(timeLeft) {
-  console.log('=== getEffectByTime ===');
-  console.log('Procurando efeito para timeLeft:', timeLeft);
-  
   // Não arredondamos mais, usamos o tempo exato para melhor precisão
   const exactTime = timeLeft;
-  console.log('Tempo exato:', exactTime);
   
   // Encontra a primeira frase onde timeLeft está entre min e max
-  const effect = phrases.find(p => {
+  const effect = phrases.find(p => 
     // Verifica se está dentro do intervalo (inclusive)
-    const isInRange = exactTime >= p.min && exactTime <= p.max;
-    console.log(`Verificando faixa ${p.min}-${p.max}: ${isInRange} (${p.text || 'sem texto'})`);
-    return isInRange;
-  }) || phrases[phrases.length - 1]; // Fallback para o último efeito
-  
-  console.log('Efeito encontrado para tempo', exactTime, ':', {
-    min: effect.min,
-    max: effect.max,
-    text: effect.text || 'sem texto',
-    animation: effect.animation,
-    showText: effect.showText
-  });
+    exactTime >= p.min && exactTime <= p.max
+  ) || phrases[phrases.length - 1]; // Fallback para o último efeito
   
   return effect;
 }
@@ -81,14 +67,14 @@ export default function GamificationEffect({ show, timeLeft, onClose }) {
   
   // Dispara o efeito de confetti
   const triggerConfetti = useCallback(() => {
-    console.log('Disparando confetti...');
+    // Disparando confetti
     try {
       confetti({
         particleCount: 100,
         spread: 70,
         origin: { y: 0.6 }
       });
-      console.log('Confetti disparado com sucesso!');
+      // Confetti disparado com sucesso
     } catch (error) {
       console.error('Erro ao disparar confetti:', error);
     }
@@ -96,82 +82,56 @@ export default function GamificationEffect({ show, timeLeft, onClose }) {
 
   // Atualiza o efeito sempre que o timeLeft mudar
   useEffect(() => {
-    console.log('=== EFEITO PRINCIPAL ATUALIZADO ===');
-    console.log('show:', show, 'timeLeft:', timeLeft);
+    console.log('GamificationEffect - show:', show, 'timeLeft:', timeLeft);
     
-    if (show && timeLeft !== null) {
-      console.log('GamificationEffect - Mostrando mensagem para tempo:', timeLeft);
+    if (show && timeLeft !== null && timeLeft > 0) {
+      console.log('Preparando para mostrar efeito...');
       
-      // Garante que o efeito atual seja limpo antes de mostrar um novo
-      setIsVisible(false);
+      const effect = getEffectByTime(timeLeft);
+      console.log('Efeito selecionado:', effect);
       
-      // Pequeno atraso para permitir a animação de saída
-      const showTimer = setTimeout(() => {
-        const effect = getEffectByTime(timeLeft);
-        console.log('Efeito selecionado:', effect);
-        setCurrentEffect(effect);
+      // Força a atualização do efeito
+      setCurrentEffect(effect);
+      
+      // Pequeno atraso para garantir que o estado foi atualizado
+      const timer = setTimeout(() => {
+        console.log('Mostrando efeito...');
+        setIsVisible(true);
         
-        // Pequeno atraso para garantir que o estado foi atualizado
-        const visibilityTimer = setTimeout(() => {
-          // Força o estado para visível
-          console.log('Tornando o componente visível...');
-          setIsVisible(true);
-          
-          // Dispara confetti se for o efeito de confetti
-          if (effect.animation === 'confetti') {
-            console.log('Disparando efeito de confetti');
-            triggerConfetti();
-          }
-          
-          // Esconde o efeito após 3 segundos
-          const hideTimer = setTimeout(() => {
-            console.log('Iniciando animação de saída...');
-            setIsVisible(false);
-            
-            // Chama onClose após a animação de fade
-            const closeTimer = setTimeout(() => {
-              console.log('Chamando onClose...');
-              onClose();
-            }, 300);
-            
-            return () => clearTimeout(closeTimer);
-          }, 3000);
-          
-          return () => {
-            console.log('Limpando hideTimer');
-            clearTimeout(hideTimer);
-          };
-        }, 50);
+        // Dispara confetti se for o efeito de confetti
+        if (effect.animation === 'confetti') {
+          console.log('Disparando confetti...');
+          triggerConfetti();
+        }
         
-        return () => {
-          console.log('Limpando visibilityTimer');
-          clearTimeout(visibilityTimer);
-        };
+        // Esconde o efeito após 3 segundos
+        const hideTimer = setTimeout(() => {
+          console.log('Escondendo efeito...');
+          setIsVisible(false);
+          
+          // Chama onClose após a animação de fade
+          const closeTimer = setTimeout(() => {
+            console.log('Chamando onClose...');
+            onClose();
+          }, 300);
+          
+          return () => clearTimeout(closeTimer);
+        }, 3000);
+        
+        return () => clearTimeout(hideTimer);
       }, 50);
       
-      return () => {
-        console.log('Limpando showTimer');
-        clearTimeout(showTimer);
-      };
+      return () => clearTimeout(timer);
     } else {
-      console.log('GamificationEffect - Escondendo (show ou timeLeft inválido)');
+      console.log('Escondendo efeito (else)...');
       setIsVisible(false);
     }
   }, [show, timeLeft, onClose, triggerConfetti]);
   
-  if (!show || !isVisible || !currentEffect) {
-    console.log('=== NÃO RENDERIZANDO GAMIFICATION EFFECT ===');
-    console.log('Motivo:');
-    console.log('- show:', show);
-    console.log('- isVisible:', isVisible);
-    console.log('- currentEffect:', currentEffect);
-    console.log('========================================');
+  // Se não tiver efeito para mostrar, não renderiza nada
+  if (!show || !currentEffect) {
     return null;
   }
-
-  console.log('=== RENDERIZANDO GAMIFICATION EFFECT ===');
-  console.log('Efeito atual:', currentEffect);
-  console.log('isVisible:', isVisible);
   
   // Definição da animação fadeIn
   const fadeInKeyframes = `
@@ -206,51 +166,37 @@ export default function GamificationEffect({ show, timeLeft, onClose }) {
     maxWidth: '90%',
     boxSizing: 'border-box',
     opacity: isVisible ? 1 : 0,
-    transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
-    transformOrigin: 'top center',
+    transition: 'all 0.3s ease-out',
+    transform: isVisible ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(-20px)',
     pointerEvents: 'none',
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
     visibility: isVisible ? 'visible' : 'hidden',
-    animation: isVisible ? 'fadeIn 0.5s ease-out' : 'none',
-    // Garante que o elemento esteja visível
+    animation: isVisible ? 'fadeIn 0.3s ease-out' : 'none',
     willChange: 'opacity, transform',
-    // Força aceleração de hardware
     backfaceVisibility: 'hidden',
-    // Melhora a renderização no Safari
     WebkitFontSmoothing: 'antialiased',
-    // Garante que o texto seja nítido
     WebkitTextSizeAdjust: '100%',
-    // Evita que o texto seja selecionado
     userSelect: 'none',
-    // Melhora a renderização no Firefox
     MozOsxFontSmoothing: 'grayscale',
-    // Garante que o elemento esteja acima de outros elementos
     isolation: 'isolate'
   };
 
   console.log('Renderizando GamificationEffect com currentEffect:', currentEffect);
   
   return (
-    <>
-      <style>{fadeInKeyframes}</style>
-      <div style={containerStyle} className="gamification-effect">
+    <div className="gami-overlay">
+      <div className="gami-content">
         {currentEffect.showText !== false && (
-          <div style={{ marginBottom: '12px' }}>{currentEffect.text}</div>
+          <div className="gami-phrase">{currentEffect.text}</div>
         )}
-        <div style={{
-          fontSize: '2rem',
-          transition: 'all 0.3s ease-out',
-          transform: isVisible ? 'scale(1.1)' : 'scale(0.9)',
-          opacity: isVisible ? 1 : 0,
-          marginTop: '8px'
-        }}>
+        <div className="gami-animation">
           {currentEffect.animation === 'confetti' && <ConfettiEffect />}
           {currentEffect.animation === 'fire' && <FireEffect />}
           {currentEffect.animation === 'zzz' && <ZzzEffect />}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

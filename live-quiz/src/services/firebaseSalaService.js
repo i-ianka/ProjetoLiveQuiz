@@ -29,7 +29,7 @@ function getNextRoundStartFuturo(sugestaoTimestamp = null) {
 export async function iniciarSalaSeNaoExistir(playlist) {
   const snapshot = await get(SALA_REF);
   if (!snapshot.exists()) {
-    console.log('Iniciando nova sala...');
+
     
     // Recupera o histórico de músicas das últimas rodadas
     let historicoMúsicas = new Set();
@@ -44,7 +44,7 @@ export async function iniciarSalaSeNaoExistir(playlist) {
             const ids = snap.val();
             if (Array.isArray(ids)) {
               ids.forEach(id => historicoMúsicas.add(id));
-              console.log(`Historico ${i}: ${ids.length} músicas`);
+
             }
           }
         }
@@ -58,7 +58,7 @@ export async function iniciarSalaSeNaoExistir(playlist) {
     const validTracks = shuffled.filter(track => 
       track.preview && !historicoMúsicas.has(track.id)
     );
-    console.log(`Músicas disponíveis: ${validTracks.length} de ${shuffled.length} total`);
+
 
     // Se não tivermos músicas suficientes, embaralhamos novamente
     let finalTracks = [];
@@ -69,7 +69,7 @@ export async function iniciarSalaSeNaoExistir(playlist) {
         historicoMúsicas.add(track.id);
       }
     }
-    console.log(`Músicas selecionadas (únicas): ${finalTracks.length}`);
+
 
     // Completa com músicas aleatórias se necessário
     while (finalTracks.length < 15 && shuffled.length > 0) {
@@ -78,23 +78,23 @@ export async function iniciarSalaSeNaoExistir(playlist) {
         finalTracks.push(track);
       }
     }
-    console.log(`Músicas selecionadas (total): ${finalTracks.length}`);
+
 
     // Se ainda não tivermos 15 músicas, usa as primeiras disponíveis
     if (finalTracks.length < 15) {
       finalTracks = finalTracks.concat(shuffled.slice(0, 15 - finalTracks.length));
-      console.log(`Completando com músicas restantes: ${finalTracks.length} total`);
+
     }
 
     const now = Date.now();
     const ROUND_DURATION_MS = finalTracks.length * 20 * 1000; // 20s por música
     const nextRoundStart = getNextRoundStartFuturo(now + ROUND_DURATION_MS + DELAY_ENTRE_RODADAS);
-    console.log(`Próxima rodada: ${new Date(nextRoundStart).toLocaleString()}`);
+
 
     // Atualiza o histórico de músicas
     const novaPlaylistIds = finalTracks.map(m => m.id);
     await set(ref(db, 'historicoMúsicas/0'), novaPlaylistIds);
-    console.log(`Atualizando histórico com ${novaPlaylistIds.length} músicas`);
+
     
     await set(SALA_REF, {
       playlist: finalTracks,
@@ -103,7 +103,7 @@ export async function iniciarSalaSeNaoExistir(playlist) {
       musicStartTimestamp: null,
       ultimaPlaylist: novaPlaylistIds
     });
-    console.log('Sala iniciada com sucesso');
+
   }
 }
 
@@ -139,7 +139,9 @@ export async function avancarMusica(indice) {
   } else if (indice < sala.playlist.length) {
     // Só atualiza musicStartTimestamp se musicaAtual realmente mudou ou se o timestamp está nulo
     if (sala.musicaAtual !== indice || !sala.musicStartTimestamp) {
-      updates.musicStartTimestamp = Date.now() + 500; // Adiciona 0.5s para compensar atraso de propagação
+      // Usa o tempo atual sem adicionar delay extra
+      // Adiciona um pequeno offset para garantir que o cliente tenha tempo de configurar o áudio
+      updates.musicStartTimestamp = Date.now() + 100; // 100ms para dar tempo do cliente se preparar
     } else {
       // Não atualiza para evitar múltiplos resets
       updates.musicStartTimestamp = sala.musicStartTimestamp;
@@ -156,7 +158,7 @@ export async function avancarMusica(indice) {
 
 // --- PATCH: Nunca remova nextRoundStart ao reiniciar sala, sempre set válido ---
 export async function reiniciarSala(playlist) {
-  console.log('Reiniciando sala...');
+
   
   // Recupera o histórico de músicas das últimas rodadas
   let historicoMúsicas = new Set();
@@ -228,11 +230,11 @@ export async function reiniciarSala(playlist) {
     musicStartTimestamp: null,
     ultimaPlaylist: novaPlaylistIds
   });
-  console.log('Sala reiniciada com sucesso');
+
 }
 
 export async function reiniciarSalaComLoop(playlist) {
-  console.log('Reiniciando sala com loop...');
+
   
   // Recupera o histórico de músicas das últimas rodadas
   let historicoMúsicas = new Set();

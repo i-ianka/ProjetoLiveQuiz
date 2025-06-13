@@ -3,9 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useGame } from '../../hooks/useGame';
 import { useFirebaseRanking } from '../../hooks/useFirebaseRanking';
 import MusicPlayer from './MusicPlayer';
+import GamificationEffect from './GamificationEffect';
 import PreviousSongsList from './PreviousSongsList';
 import LiveRanking from './LiveRanking';
-import GamificationEffect from './GamificationEffect';
 import '../GamePage.css';
 import '../GamificationEffect.css';
 import confetti from 'canvas-confetti';
@@ -118,8 +118,7 @@ export default function GamePage() {
           setShuffledMusics(prev => {
             if (JSON.stringify(prev) !== JSON.stringify(novaSala.playlist)) {
               if (Array.isArray(novaSala.playlist)) {
-                console.log('[FRONTEND] Playlist sorteada:', novaSala.playlist.map(m => `${m.artist?.name || m.artist} - ${m.title || m.name}`));
-                console.log('[FRONTEND][DEBUG] IDs sorteados:', novaSala.playlist.map(m => m.id));
+                // Playlist carregada
               }
               return novaSala.playlist;
             }
@@ -155,7 +154,7 @@ export default function GamePage() {
           }
         });
       } catch (err) {
-        console.error('Erro ao escutar sala:', err);
+        // Error handling for room listening
       }
     };
   
@@ -204,122 +203,167 @@ export default function GamePage() {
   const [gamificationMsg, setGamificationMsg] = useState('');
   const [showGamification, setShowGamification] = useState(false);
   const [gamificationTime, setGamificationTime] = useState(0);
-
-  const triggerGamification = useCallback((timeLeft, isAnswerCorrect = false) => {
-    console.log('=== INÍCIO triggerGamification ===');
-    console.log('Parâmetros recebidos:', { timeLeft, isAnswerCorrect });
-    
-    // Só mostra a mensagem se a resposta estiver correta
-    if (!isAnswerCorrect) {
-      console.log('Resposta incorreta, não mostrando mensagem de gamificação');
-      console.log('=== FIM triggerGamification (resposta incorreta) ===');
-      return;
-    }
-    
-    console.log('Tempo exato recebido:', timeLeft);
-    
-    // Verifica se o tempo atual está dentro de alguma das faixas de gamificação
-    const isInGamificationRange = (time) => {
-      return (
-        (time >= 15) || // 15 ou mais
-        (time >= 10 && time <= 14.99) || // 10 a 14.99
-        (time >= 6 && time <= 9.99) ||   // 6 a 9.99
-        (time >= 0 && time <= 5.99)      // 0 a 5.99
-      );
-    };
-    
-    const shouldShowGamification = isInGamificationRange(timeLeft);
-    
-    console.log('Deve mostrar gamificação?', shouldShowGamification);
-    
-    if (!shouldShowGamification) {
-      console.log(`Tempo ${timeLeft} não está em uma faixa de gamificação válida`);
-      console.log('=== FIM triggerGamification (fora da faixa) ===');
-      return;
-    }
-    
-    console.log(`Mostrando mensagem de gamificação para tempo: ${timeLeft}s`);
-    
-    // Primeiro, garante que o estado está limpo
-    console.log('Limpando estado anterior...');
+  
+  // Garante sumiço automático após X segundos
+  const handleGamificationClose = useCallback(() => {
+    console.log('handleGamificationClose chamado');
     setShowGamification(false);
     
-    // Aguarda um ciclo de renderização para garantir que o estado foi atualizado
+    // Limpa o gamificationTime após a animação de saída
     const timer = setTimeout(() => {
-      console.log('Atualizando estado com novo tempo:', timeLeft);
-      setGamificationTime(timeLeft);
+      setGamificationTime(0);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+
+  const triggerGamification = useCallback((timeLeft, isAnswerCorrect = true) => {
+    // Se a resposta estiver incorreta, não mostramos a mensagem de gamificação
+    if (!isAnswerCorrect) {
+      return;
+    }
+
+    // Usa o tempo exato, sem arredondar, para melhor precisão
+    const exactTime = timeLeft;
+    
+    // Verifica em qual faixa de tempo o tempo se encaixa
+    let shouldShowGamification = false;
+    
+    if (exactTime >= 15) {
+      shouldShowGamification = true;
+    } else if (exactTime >= 10) {
+      shouldShowGamification = true;
+    } else if (exactTime >= 5) {
+      shouldShowGamification = true;
+    } else if (exactTime > 0) {
+      shouldShowGamification = true;
+    }
+    
+    console.log('Triggering gamification:', { 
+      timeLeft, 
+      exactTime,
+      shouldShowGamification
+    });
+
+    if (!shouldShowGamification) {
+      return;
+    }
+
+    console.log('Mostrando gamification para tempo:', exactTime);
+    
+    // Define o tempo e mostra o componente
+    setGamificationTime(exactTime);
+    setShowGamification(true);
+    
+    console.log('Gamification visível para tempo:', exactTime);
+    
+    // Esconde o efeito após 3 segundos
+    const hideTimer = setTimeout(() => {
+      console.log('Escondendo gamification após timeout');
+      setShowGamification(false);
       
-      // Pequeno atraso para garantir que o estado foi atualizado
-      const showTimer = setTimeout(() => {
-        console.log('Mostrando mensagem de gamificação...');
-        setShowGamification(true);
-        console.log('Estado atualizado - showGamification: true, gamificationTime:', timeLeft);
-        
-        // Esconde a mensagem após 3 segundos
-        console.log('Iniciando timer para esconder a mensagem...');
-        const hideTimer = setTimeout(() => {
-          console.log('Escondendo mensagem de gamificação após timeout');
-          setShowGamification(false);
-          console.log('=== FIM triggerGamification (mensagem escondida) ===');
-        }, 3000);
-        
-        return () => {
-          console.log('Limpando hideTimer');
-          clearTimeout(hideTimer);
-        };
-      }, 50);
+      // Limpa o tempo após esconder
+      const clearTimer = setTimeout(() => {
+        setGamificationTime(0);
+      }, 300);
       
-      return () => {
-        console.log('Limpando showTimer');
-        clearTimeout(showTimer);
-      };
-    }, 50);
+      return () => clearTimeout(clearTimer);
+    }, 3000);
     
     return () => {
-      console.log('Limpando timer principal');
-      clearTimeout(timer);
+      console.log('Limpando timer do gamification');
+      clearTimeout(hideTimer);
     };
   }, []);
+
+  // Função para verificar se a resposta contém exatamente o título e o artista, em qualquer ordem
+  const checkAnswer = (answer, title, artist) => {
+    if (!answer || !title || !artist) return false;
+    
+    const cleanAnswer = normalizeText(answer);
+    const cleanTitle = normalizeText(title);
+    const cleanArtist = normalizeText(artist);
+    
+    // Cria os padrões de busca exatos
+    const pattern1 = `${cleanTitle} ${cleanArtist}`; // Título + Artista
+    const pattern2 = `${cleanArtist} ${cleanTitle}`; // Artista + Título
+    
+    // Verifica se a resposta corresponde exatamente a algum dos padrões
+    return cleanAnswer === pattern1 || cleanAnswer === pattern2;
+  };
+
+  // Função para normalizar e limpar o texto
+  const normalizeText = (str) => {
+    if (!str) return '';
+    return str
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '') // Remove caracteres especiais
+      .replace(/\s+/g, ' ') // Substitui múltiplos espaços por um único
+      .trim();
+  };
+  
+  // Função auxiliar para verificar se a resposta contém exatamente o título ou artista
+  const checkExactMatch = (answer, text) => {
+    if (!answer || !text) return false;
+    return normalizeText(answer) === normalizeText(text);
+  };
+
+  // Função para verificar se o texto está contido no outro, ignorando acentos e case
+  const containsText = (text, searchText) => {
+    if (!text || !searchText) return false;
+    return normalizeText(text).includes(normalizeText(searchText));
+  };
 
   // Handler de resposta do usuário
   const handleAnswer = () => {
     if (!answered && currentMusic) {
-      const answer = normalize(input);
-      const title = normalize(currentMusic.title.replace(/-/g, ' '));
-      const artist = normalize(currentMusic.artist.name.replace(/-/g, ' '));
+      const answer = input.trim();
+      const title = currentMusic.title.replace(/-/g, ' ');
+      const artist = currentMusic.artist?.name?.replace(/-/g, ' ') || '';
       
-      console.log('Resposta recebida:', { answer, title, artist });
+      const isCorrect = checkAnswer(answer, title, artist);
+      const hasTitle = checkExactMatch(answer, title);
+      const hasArtist = checkExactMatch(answer, artist);
+      const hasPartialTitle = !hasTitle && answer.length > 2 && containsText(title, answer);
+      const hasPartialArtist = !hasArtist && answer.length > 2 && containsText(artist, answer);
       
-      setAttempts(prev => [...prev, input]); // Salva tentativa original
+      console.log('Resposta:', { 
+        answer, 
+        title, 
+        artist, 
+        isCorrect, 
+        hasTitle, 
+        hasArtist, 
+        hasPartialTitle, 
+        hasPartialArtist 
+      });
       
-      // Verifica se a resposta está correta
-      const hasTitle = answer.includes(title);
-      const hasArtist = answer.includes(artist);
-      const hasBoth = hasTitle && hasArtist;
-      // Ordem invertida: artista antes do título também é aceita
-      const hasBothInverted = (answer.indexOf(artist) > -1 && answer.indexOf(title) > -1);
-      
-      const isAnswerCorrect = (hasTitle && hasArtist) || hasBothInverted;
-      
-      if (isAnswerCorrect) {
-        console.log('Resposta correta! Tempo restante:', currentTimeLeft);
-        setFeedback('✅ Correto!');
-        addPoints(currentTimeLeft);
-        setAnswered(true);
+      if (isCorrect) {
+        // Pontuação é exatamente igual aos segundos restantes (máximo 20s)
+        const timeLeft = Math.max(0, Math.min(20, Math.floor(currentTimeLeft)));
+        const points = timeLeft; // 1 ponto por segundo restante
         
-        // Mostra a mensagem de gamificação apenas se a resposta estiver correta
-        // e no tempo certo
-        console.log('Chamando triggerGamification com tempo:', currentTimeLeft);
+        addPoints(points);
+        setFeedback(`Correto! +${points} pontos! (${timeLeft}s)`);
+        
+        // Dispara a gamificação apenas se a resposta estiver correta
         triggerGamification(currentTimeLeft, true);
-      } else if (
-        hasTitle || hasArtist ||
-        title.split(' ').some(word => answer.includes(word)) ||
-        artist.split(' ').some(word => answer.includes(word))
-      ) {
-        setFeedback('✨ Quase lá! Você acertou parte!');
+      } else if (hasTitle || hasArtist) {
+        // Se acertou apenas um (título ou artista), mas não os dois
+        const correctPart = hasTitle ? 'o título' : 'o artista';
+        const missingPart = hasTitle ? 'o artista' : 'o título';
+        setFeedback(`Quase lá! Você acertou ${correctPart}, mas falta ${missingPart}!`);
+        setInput('');
+      } else if (hasPartialTitle || hasPartialArtist) {
+        // Se a resposta está contida no título ou artista
+        const partialMatch = hasPartialTitle ? 'o título' : 'o artista';
+        setFeedback(`Você está no caminho certo! Continue tentando acertar ${partialMatch} completo.`);
         setInput('');
       } else {
-        setFeedback('❌ Errou!');
+        setFeedback('Errou! Tente novamente!');
+        setInput('');
       }
     }
   };
@@ -335,7 +379,7 @@ export default function GamePage() {
 
     if (currentMusic) {
       const artistName = currentMusic.artist?.name || 'Artista desconhecido';
-      setFeedback(`⏰ Tempo esgotado! A música era "${currentMusic.title.replace(/-/g, ' ')}" por ${currentMusic.artist?.name.replace(/-/g, ' ')}`);
+      setFeedback(`Tempo esgotado! A música era "${currentMusic.title.replace(/-/g, ' ')}" por ${currentMusic.artist?.name.replace(/-/g, ' ')}`);
       setTimeout(() => {
         setFeedback('');
         moveToNext();
@@ -368,7 +412,7 @@ export default function GamePage() {
       try {
         await removePlayerFromRanking();
       } catch (err) {
-        console.warn('Erro ao remover jogador do ranking:', err);
+        // Error handling for player removal from ranking
       }
       resetGame && resetGame();
       localStorage.clear();
@@ -393,11 +437,10 @@ export default function GamePage() {
     // Só registra se nickname.name existir e playerKey estiver definido
     const nickNameStr = typeof nickname === 'object' && nickname !== null ? nickname.name : nickname;
     if (nickNameStr && playerKey && registerPlayerInRanking) {
-      console.log('[DEBUG] Registrando jogador:', nickNameStr, playerKey, points);
       registerPlayerInRanking(points ?? 0);
       localStorage.setItem('entrouNaRodada', 'true');
     } else {
-      console.log('[DEBUG] Nickname/playerKey ausente ou inválido:', nickname, playerKey, points);
+      // Debug information for missing nickname/playerKey
     }
     // eslint-disable-next-line
   }, [nickname, playerKey, points]);
@@ -406,61 +449,10 @@ export default function GamePage() {
   // A gamificação agora só é acionada quando o usuário acerta a resposta
   // através do handleAnswer abaixo
 
-  // Garante sumiço automático após X segundos
-  const handleGamificationClose = React.useCallback(() => {
-    console.log('=== INÍCIO handleGamificationClose ===');
-    console.log('Escondendo gamificação...');
-    setShowGamification(false);
-    
-    // Força um novo render limpando o tempo
-    const timer = setTimeout(() => {
-      console.log('Limpando gamificationTime...');
-      setGamificationTime(0);
-      console.log('=== FIM handleGamificationClose ===');
-    }, 100);
-    
-    return () => {
-      console.log('Limpando timer do handleGamificationClose');
-      clearTimeout(timer);
-    };
-  }, []);
 
-  // Renderização do componente de gamificação
-  const renderGamification = () => {
-    console.log('=== RENDERIZANDO GAMIFICATION ===');
-    console.log('showGamification:', showGamification);
-    console.log('gamificationTime:', gamificationTime);
-    
-    if (!showGamification || gamificationTime === null) {
-      console.log('Não renderizando GamificationEffect (showGamification é falso ou gamificationTime é nulo)');
-      return null;
-    }
-    
-    console.log('Renderizando GamificationEffect com tempo:', gamificationTime);
-    
-    return (
-      <div style={{ 
-        position: 'fixed', 
-        top: '20px', 
-        left: '0',
-        right: '0',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        zIndex: 10000,
-        pointerEvents: 'none',
-        width: '100%',
-        height: '0', // Altura zero para não interferir no layout
-        overflow: 'visible' // Permite que o conteúdo seja exibido fora do container
-      }}>
-        <GamificationEffect
-          show={showGamification}
-          timeLeft={gamificationTime}
-          onClose={handleGamificationClose}
-        />
-      </div>
-    );
-  };
+
+  // Função vazia para manter compatibilidade
+  const renderGamification = () => null;
 
   // Novo: input só fica desabilitado se não houver música OU preview OU se já respondeu/tempo acabou (exceto se tempo restante >= 1)
   const isInputDisabled = !currentMusic || !currentMusic.preview || answered || (musicEnded === true && currentTimeLeft < 1);
@@ -483,8 +475,12 @@ export default function GamePage() {
 
   return (
     <div className="game-page dark-mode">
-      {/* Gamification Overlay */}
-      {renderGamification()}
+      {/* Gamification Effect */}
+      <GamificationEffect 
+        show={showGamification} 
+        timeLeft={gamificationTime} 
+        onClose={handleGamificationClose} 
+      />
       
       {/* Grid principal */}
       <div className="game-grid dark-mode">

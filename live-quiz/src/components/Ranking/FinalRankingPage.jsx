@@ -41,6 +41,7 @@ export default function FinalRankingPage() {
   const [roundTimeLeft, setRoundTimeLeft] = useState(null);
   const [timerLabel, setTimerLabel] = useState('');
   const [sala, setSala] = useState(null);
+  const [showLobby, setShowLobby] = useState(false);
 
   // Atualização de estado só se diferente para evitar re-render desnecessário
   const safeSetGameState = useCallback(newState => {
@@ -170,14 +171,20 @@ export default function FinalRankingPage() {
   // Navegar para game automaticamente ao acabar countdown e flag aguardandoNovaRodada estiver true
   useEffect(() => {
     if (roundTimeLeft === 0 && aguardandoNovaRodada) {
-      navigate('/game', { state: { fromRanking: true } });
+      // Mostra o lobby por 3 segundos antes de redirecionar
+      setShowLobby(true);
+      const timer = setTimeout(() => {
+        navigate('/game', { state: { fromRanking: true } });
+      }, 3000);
+      
+      return () => clearTimeout(timer);
     }
   }, [roundTimeLeft, aguardandoNovaRodada, navigate]);
 
   // Nova lógica: aguardar roundId mudar para resetar pontos e registrar jogador
   useEffect(() => {
     if (aguardandoNovaRodada && typeof resetPointsEverywhere === 'function' && typeof registerPlayerInRanking === 'function') {
-      console.log('[FinalRankingPage] Nova rodada detectada! roundId:', roundId);
+      // Nova rodada detectada
       resetPointsEverywhere();
       registerPlayerInRanking(0);
       // safeSetAguardandoNovaRodada(false); // Descomente se quiser resetar flag após registrar
@@ -187,16 +194,21 @@ export default function FinalRankingPage() {
   // Garante reset ao montar, mesmo se roundId já for o da nova rodada
   useEffect(() => {
     if (aguardandoNovaRodada && typeof resetPointsEverywhere === 'function' && typeof registerPlayerInRanking === 'function') {
-      console.log('[FinalRankingPage] (MOUNT) Nova rodada detectada! roundId:', roundId);
+      // Nova rodada detectada (mount)
       resetPointsEverywhere();
       registerPlayerInRanking(0);
       // safeSetAguardandoNovaRodada(false);
     }
+    
+    // Reseta o estado do lobby ao desmontar
+    return () => {
+      setShowLobby(false);
+    };
     // eslint-disable-next-line
   }, []);
   const handlePlayAgain = useCallback(async () => {
     if (aguardandoNovaRodada) return;
-    console.log('[FinalRankingPage] Clicou em Jogar Novamente - aguardando nova rodada... (roundId atual:', roundId, ')');
+    // Aguardando nova rodada
     safeSetAguardandoNovaRodada(true);
     // Agora o reset e registro ocorrerão no useEffect acima, assim que roundId mudar!
   }, [aguardandoNovaRodada, safeSetAguardandoNovaRodada, roundId]);
@@ -339,6 +351,23 @@ export default function FinalRankingPage() {
       })}
     </div>
   );
+
+  // Componente de Lobby
+  const Lobby = () => (
+    <div className="lobby-overlay">
+      <div className="lobby-content">
+        <div className="lobby-spinner">
+          <div className="spinner"></div>
+        </div>
+        <h2>Rodada Iniciando</h2>
+        <p>Prepare-se!</p>
+      </div>
+    </div>
+  );
+
+  if (showLobby) {
+    return <Lobby />;
+  }
 
   return (
     <div className="final-ranking-container">
