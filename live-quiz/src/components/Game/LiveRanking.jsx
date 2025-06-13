@@ -1,19 +1,49 @@
-import React from 'react';
+// LiveRanking.jsx atualizado para considerar apenas a rodada atual com contexto
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import '../LiveRanking.css';
 import { useFirebaseRanking } from '../../hooks/useFirebaseRanking';
+import { GameContext } from '../../context/GameContext';
 
 export default function LiveRanking({ playerKey, refreshTrigger }) {
-  const { ranking } = useFirebaseRanking();
-AQUIII
-  // Polling removido: ranking agora é em tempo real via hook
+  const { roundId } = useContext(GameContext);
+  const { ranking } = useFirebaseRanking(roundId);
 
   console.log('[DEBUG] Ranking recebido:', ranking);
 
-  // Filtra apenas jogadores com nickname válido
+  // Estado para detectar jogadores que saíram
+  const lastRankingRef = useRef([]);
+  const [playersLeft, setPlayersLeft] = useState([]);
+
+  useEffect(() => {
+    const prevNicks = lastRankingRef.current.map(p => {
+      let nick = p.nickname;
+      if (typeof nick === 'object' && nick !== null) nick = nick.name;
+      return nick;
+    });
+    const currNicks = ranking.map(p => {
+      let nick = p.nickname;
+      if (typeof nick === 'object' && nick !== null) nick = nick.name;
+      return nick;
+    });
+    const sairam = prevNicks.filter(nick => !currNicks.includes(nick));
+    if (sairam.length > 0) {
+      setPlayersLeft(sairam);
+      setTimeout(() => setPlayersLeft([]), 4000);
+    }
+    lastRankingRef.current = ranking;
+  }, [ranking]);
+
   const validRanking = ranking.filter(p => {
-    const nick = typeof p.nickname === 'object' && p.nickname !== null ? p.nickname.name : p.nickname;
-    return nick && nick.trim() !== '';
+    let nick = p.nickname;
+    if (typeof nick === 'object' && nick !== null) {
+      nick = nick.name;
+    }
+    if (typeof nick === 'string') {
+      return nick.trim() !== '';
+    }
+    return false;
   });
+
   const top15 = validRanking.slice(0, 15);
   const playerIndex = validRanking.findIndex(p => p.id === playerKey);
   const isOutsideTop15 = playerIndex >= 15;
@@ -32,9 +62,25 @@ AQUIII
   return (
     <div className="ranking-card">
       <h2 className="ranking-title">🏆 Ranking</h2>
+      {playersLeft.length > 0 && (
+        <div style={{
+          background: '#f87171',
+          color: 'white',
+          padding: 8,
+          borderRadius: 6,
+          marginBottom: 12,
+          textAlign: 'center',
+          fontWeight: 500
+        }}>
+          {playersLeft.length === 1
+            ? <>Jogador <b>{playersLeft[0]}</b> saiu da sala</>
+            : <>Jogadores <b>{playersLeft.join(', ')}</b> saíram da sala</>
+          }
+        </div>
+      )}
       <div className="ranking-meta" style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
         <span style={{ fontWeight: 600, color: '#a78bfa', fontSize: 16 }}>
-          {totalPlayers} jogador{totalPlayers !== 1 ? 'es' : ''} na sala
+          {totalPlayers} jogador{totalPlayers !== 1 ? 'es' : ''} na rodada
         </span>
         {playerData && (
           <span className="user-position" style={{ color: '#7c3aed', fontWeight: 500, fontSize: 15, marginTop: 2 }}>
@@ -52,16 +98,13 @@ AQUIII
             >
               <span className="ranking-position" style={{ minWidth: 48, textAlign: 'right', fontWeight: 700, color: '#a78bfa', fontSize: 15, flexShrink: 0 }}>{index + 1}º</span>
               <span className="ranking-name" style={{ flex: 1, fontWeight: 600, color: '#c7d2fe', fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 8px' }}>{safeDisplayName(player.nickname)}</span>
-              <span className="ranking-points" style={{ color: '#a78bfa', fontWeight: 600, fontSize: 15, minWidth: 60, textAlign: 'right', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.points} pts</span>
+              <span className="ranking-points" style={{ color: '#a78bfa', fontWeight: 600, fontSize: 15, minWidth: 60, textAlign: 'right', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.points}</span>
             </div>
           ))}
         </div>
       ) : (
-        <p className="no-players">Nenhum jogador conectado</p>
-      )}
-      {isOutsideTop15 && playerData && (
-        <div className="outside-top15" style={{ marginTop: 12, color: '#fbbf24', fontWeight: 600, fontSize: 15, textAlign: 'center' }}>
-          <p>Sua posição: {playerIndex + 1}º - {safeDisplayName(playerData.nickname)}: {playerData.points} pontos</p>
+        <div style={{ padding: 16, color: '#ccc', fontStyle: 'italic' }}>
+          Nenhum jogador na rodada atual.
         </div>
       )}
     </div>

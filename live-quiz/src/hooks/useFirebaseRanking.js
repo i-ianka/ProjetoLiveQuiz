@@ -8,6 +8,18 @@ export function useFirebaseRanking(roundId) {
   const [ranking, setRanking] = useState([]);
   const playerKeyRef = useRef(null);
 
+  // Removido reset automático de pontos ao detectar nova rodada.
+  useEffect(() => {
+    if (nickname && playerKeyRef.current && typeof roundId !== 'undefined') {
+      const nickKey = typeof nickname === 'object' && nickname !== null ? nickname.name : nickname;
+      const playerId = playerKeyRef.current;
+      const playerRef = ref(db, `salaAtual/jogadores/${playerId}`);
+      get(playerRef).then(snapshot => {
+        const player = snapshot.val();
+      });
+    }
+  }, [roundId]);
+
   // Calcula e armazena o playerKey de forma síncrona
   useEffect(() => {
     if (!nickname) return;
@@ -101,49 +113,49 @@ export function useFirebaseRanking(roundId) {
 
   // Registra jogador no ranking ao entrar na sala (nickname e pontos locais), mas só se ainda não existir
   const registerPlayerInRanking = async (customPoints) => {
-    if (!nickname || !playerKeyRef.current) return;
+    if (!nickname) return;
     let nickKey = typeof nickname === 'object' && nickname !== null ? nickname.name : nickname;
-    const storedId = playerKeyRef.current;
-    const playerRef = ref(db, `salaAtual/jogadores/${storedId}`);
+    let playerId = localStorage.getItem('playerId_' + nickKey);
+    if (!playerId) {
+      playerId = nickKey + '_' + Math.random().toString(36).substring(2, 6);
+      localStorage.setItem('playerId_' + nickKey, playerId);
+    }
+    playerKeyRef.current = playerId;
+    const playerRef = ref(db, `salaAtual/jogadores/${playerId}`);
     let safeNickname = nickname;
     if (!safeNickname || (typeof safeNickname === 'string' && safeNickname.trim() === '')) {
       safeNickname = 'Jogador';
     }
-    
-    // Busca os pontos mais recentes (localStorage ou contexto)
-    let currentPoints = 0;
-    if (typeof customPoints === 'number' && !isNaN(customPoints)) {
-      currentPoints = customPoints;
-    } else if (typeof points === 'number' && !isNaN(points)) {
-      currentPoints = points;
-    } else {
-      // fallback: tenta pegar do localStorage
-      const storedPts = localStorage.getItem('points_' + nickKey);
-      if (storedPts && !isNaN(Number(storedPts))) {
-        currentPoints = Number(storedPts);
-      }
-    }
-    
     // Sempre registra/atualiza o jogador no ranking (nickname, pontos, timestamps)
     await update(playerRef, {
       nickname: safeNickname,
-      points: currentPoints,
+      points: typeof customPoints === 'number' ? customPoints : 0,
       createdAt: Date.now(),
-      lastActive: Date.now()
+      lastActive: Date.now(),
+      roundId: roundId || 0
     });
-    
     // Marca que o jogador entrou na rodada
     localStorage.setItem('entrouNaRodada', 'true');
   };
 
-  // --- PATCH: Remover duplicatas de nickname no ranking ---
+
+  // --- PATCH: Ranking só da rodada atual ---
   useEffect(() => {
     const jogadoresRef = ref(db, 'salaAtual/jogadores');
     const unsubscribe = onValue(jogadoresRef, (snapshot) => {
       const data = snapshot.val() || {};
+      const now = Date.now();
+      const INACTIVITY_THRESHOLD = 180000; // 3 minutos
+      // Filtra jogadores ativos (última atividade nos últimos 30 segundos)
+      const ativos = Object.entries(data).filter(([_, player]) => {
+        if (!player) return false;
+        return (now - (player.lastActive || 0)) < INACTIVITY_THRESHOLD;
+      });
+      // NÃO filtra por roundId, mostra todos os ativos
+      let rankingFiltrado = ativos;
       // Agrupa por nickname (string ou .name)
       const byNick = {};
-      Object.entries(data).forEach(([id, value]) => {
+      rankingFiltrado.forEach(([id, value]) => {
         let nick = value.nickname;
         if (typeof nick === 'object' && nick !== null) nick = nick.name;
         if (!byNick[nick]) byNick[nick] = [];
@@ -155,7 +167,7 @@ export function useFirebaseRanking(roundId) {
         return arr[0];
       });
       uniqueList.sort((a, b) => b.points - a.points || a.createdAt - b.createdAt);
-      setRanking(uniqueList);
+      setRanking(prev => (uniqueList.length === 0 || JSON.stringify(prev) === JSON.stringify(uniqueList)) ? prev : uniqueList);
     });
     return () => unsubscribe();
   }, []);

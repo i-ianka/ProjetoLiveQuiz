@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useGame } from '../../hooks/useGame';
+import { useGame } from '../../hooks/useGame'; // Corrigido para importar roundId
 import { useFirebaseRanking } from '../../hooks/useFirebaseRanking';
 import { getSalaAtualFinalRanking, ouvirSalaFinalRanking } from '../../services/firebaseSalaFinalRanking';
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -14,13 +14,14 @@ const GameState = {
 };
 
 export default function FinalRankingPage() {
-  const { nickname, points, resetGame, registerPlayerInRanking } = useGame();
+  const { nickname, points, resetGame, registerPlayerInRanking, resetPointsEverywhere, roundId } = useGame(); // roundId trazido do contexto
   const navigate = useNavigate();
   const { ranking, removePlayerFromRanking, persistPlayerScore } = useFirebaseRanking();
 
-  const intervalsRef = useRef([]);
-  const timerRef = useRef(null);
   const roundStartTimeRef = useRef(null);
+  const timerIntervalRef = useRef(null);
+  const hasRedirectedRef = useRef(false);
+
   const [gameState, setGameState] = useState(() => {
     const saved = localStorage.getItem('gameState');
     return saved && saved !== 'undefined' ? JSON.parse(saved) : GameState.LOADING;
@@ -38,235 +39,167 @@ export default function FinalRankingPage() {
     return saved && saved !== 'undefined' ? JSON.parse(saved) : false;
   });
   const [roundTimeLeft, setRoundTimeLeft] = useState(null);
-  const [smartTimeLeft, setSmartTimeLeft] = useState(null);
   const [timerLabel, setTimerLabel] = useState('');
   const [sala, setSala] = useState(null);
 
-  const updateGameState = useCallback((newState) => {
-    setGameState(newState);
+  // Atualização de estado só se diferente para evitar re-render desnecessário
+  const safeSetGameState = useCallback(newState => {
+    setGameState(prev => (prev !== newState ? newState : prev));
     localStorage.setItem('gameState', JSON.stringify(newState));
   }, []);
 
-  const updateNextRoundStart = useCallback((timestamp) => {
-    setNextRoundStart(timestamp);
+  const safeSetNextRoundStart = useCallback(timestamp => {
+    setNextRoundStart(prev => (prev !== timestamp ? timestamp : prev));
     localStorage.setItem('nextRoundStart', JSON.stringify(timestamp));
   }, []);
 
-  const updateLastRoundStart = useCallback((timestamp) => {
-    setLastRoundStart(timestamp);
+  const safeSetLastRoundStart = useCallback(timestamp => {
+    setLastRoundStart(prev => (prev !== timestamp ? timestamp : prev));
     localStorage.setItem('lastRoundStart', JSON.stringify(timestamp));
   }, []);
 
-  const updateAguardandoNovaRodada = useCallback((value) => {
-    setAguardandoNovaRodada(value);
+  const safeSetAguardandoNovaRodada = useCallback(value => {
+    setAguardandoNovaRodada(prev => (prev !== value ? value : prev));
     localStorage.setItem('aguardandoNovaRodada', JSON.stringify(value));
   }, []);
 
-  const clearAllIntervals = useCallback(() => {
-    intervalsRef.current.forEach(interval => clearInterval(interval));
-    intervalsRef.current = [];
-  }, []);
-
-  const setTrackedInterval = useCallback((callback, delay) => {
-    const id = setInterval(callback, delay);
-    intervalsRef.current.push(id);
-    return id;
-  }, []);
-
-  useEffect(() => {
-    if (roundTimeLeft === 0 && gameState === GameState.COUNTDOWN) {
-      updateGameState(GameState.ROUND_ACTIVE);
-    }
-  }, [roundTimeLeft, gameState, updateGameState]);
-
-  useEffect(() => {
-    if (roundTimeLeft === 0 && aguardandoNovaRodada) {
-      navigate('/game', { state: { fromRanking: true } });
-    }
-  }, [roundTimeLeft, aguardandoNovaRodada, navigate]);
-
-  useEffect(() => {
-    if (!lastRoundStart || !nextRoundStart) return;
-
-    const updateSmartTime = () => {
-      const now = Date.now();
-      const roundEnd = lastRoundStart + 60000; // Active round duration: 60 seconds
-      const nextRoundStartTime = roundEnd + 20000; // Delay between rounds: 20 seconds
-
-      if (now < roundEnd) {
-        const segundosRestantes = Math.max(0, Math.floor((roundEnd - now) / 1000));
-        setSmartTimeLeft(segundosRestantes);
-        setTimerLabel('Fim da rodada em');
-        setGameState(GameState.ROUND_ACTIVE);
-      } else if (now < nextRoundStartTime) {
-        const segundosAteProxima = Math.max(0, Math.floor((nextRoundStartTime - now) / 1000));
-        setSmartTimeLeft(segundosAteProxima);
-        setTimerLabel('Próxima rodada em');
-        setGameState(GameState.WAITING);
-      } else {
-        setSmartTimeLeft(0);
-        setTimerLabel('Próxima rodada em');
-      }
-    };
-
-    updateSmartTime();
-    const interval = setInterval(updateSmartTime, 1000);
-    return () => clearInterval(interval);
-  }, [lastRoundStart, nextRoundStart]);
-
-  useEffect(() => {
-    console.log('Timer effect:', {
-      roundTimeLeft,
-      gameState,
-      aguardandoNovaRodada,
-      lastRoundStart: lastRoundStart ? new Date(lastRoundStart).toISOString() : null,
-      nextRoundStart: nextRoundStart ? new Date(nextRoundStart).toISOString() : null,
-      now: new Date().toISOString()
-    });
-
-    if (roundTimeLeft === 0 && gameState === GameState.COUNTDOWN) {
-      console.log('Mudando para ROUND_ACTIVE');
-      updateGameState(GameState.ROUND_ACTIVE);
-      updateAguardandoNovaRodada(false);
-    }
-  }, [roundTimeLeft, updateGameState, updateAguardandoNovaRodada]);
-
+  // Listener do Firebase sala atual
   useEffect(() => {
     const fetchSala = async () => {
       const salaAtual = await getSalaAtualFinalRanking();
       if (salaAtual) {
         setSala(salaAtual);
         const lastStart = salaAtual.lastRoundStart || salaAtual.musicStartTimestamp;
-        console.log('Sala atual:', { 
-          sala: {
-            ...salaAtual,
-            lastRoundStart: salaAtual.lastRoundStart ? new Date(salaAtual.lastRoundStart).toISOString() : null,
-            musicStartTimestamp: salaAtual.musicStartTimestamp ? new Date(salaAtual.musicStartTimestamp).toISOString() : null,
-            nextRoundStart: salaAtual.nextRoundStart ? new Date(salaAtual.nextRoundStart).toISOString() : null
-          },
-          lastStart: lastStart ? new Date(lastStart).toISOString() : null
-        });
-        updateNextRoundStart(salaAtual.nextRoundStart || null);
-        updateLastRoundStart(lastStart || null);
+        safeSetNextRoundStart(salaAtual.nextRoundStart || null);
+        safeSetLastRoundStart(lastStart || null);
       }
     };
     fetchSala();
+
     const unsub = ouvirSalaFinalRanking(salaAtual => {
       if (!salaAtual) {
         navigate('/');
         return;
       }
 
-      setSala(salaAtual);
+      // Atualiza sala só se mudou
+      setSala(prevSala => {
+        if (JSON.stringify(prevSala) === JSON.stringify(salaAtual)) return prevSala;
+        return salaAtual;
+      });
+
       const now = Date.now();
       const lastStart = salaAtual.lastRoundStart || salaAtual.musicStartTimestamp;
       const roundEnd = lastStart ? lastStart + (salaAtual.playlist?.length * 20 * 1000) : null;
+
+      if (aguardandoNovaRodada && roundEnd && now >= roundEnd) {
+        if (!hasRedirectedRef.current) {
+          hasRedirectedRef.current = true;
+          localStorage.removeItem('gameState');
+          localStorage.removeItem('nextRoundStart');
+          localStorage.removeItem('lastRoundStart');
+          localStorage.removeItem('aguardandoNovaRodada');
+          navigate('/game', { state: { fromRanking: true } });
+        }
+        return;
+      }
+
       const segundosAteProxima = salaAtual.nextRoundStart
         ? Math.max(0, Math.floor((salaAtual.nextRoundStart - now) / 1000))
         : null;
 
-      console.log('Firebase update:', {
-        segundosAteProxima,
-        gameState,
-        roundTimeLeft,
-        aguardandoNovaRodada,
-        roundEnd: roundEnd ? new Date(roundEnd).toISOString() : null,
-        now: new Date(now).toISOString(),
-        lastStart: lastStart ? new Date(lastStart).toISOString() : null,
-        sala: {
-          lastRoundStart: salaAtual.lastRoundStart ? new Date(salaAtual.lastRoundStart).toISOString() : null,
-          musicStartTimestamp: salaAtual.musicStartTimestamp ? new Date(salaAtual.musicStartTimestamp).toISOString() : null,
-          nextRoundStart: salaAtual.nextRoundStart ? new Date(salaAtual.nextRoundStart).toISOString() : null
-        }
-      });
-
-      if (aguardandoNovaRodada && roundEnd && now >= roundEnd) {
-        console.log('Redirecionando para game page - rodada acabou', {
-          now: new Date(now).toISOString(),
-          roundEnd: new Date(roundEnd).toISOString(),
-          diff: now - roundEnd
-        });
-        localStorage.removeItem('gameState');
-        localStorage.removeItem('nextRoundStart');
-        localStorage.removeItem('lastRoundStart');
-        localStorage.removeItem('aguardandoNovaRodada');
-        navigate('/game', { state: { fromRanking: true } });
-        return;
-      }
+      // Atualiza estados apenas se diferente para evitar rerenders
+      safeSetNextRoundStart(salaAtual.nextRoundStart);
+      safeSetLastRoundStart(lastStart);
 
       if (lastStart && now < roundEnd) {
-        updateGameState(GameState.ROUND_ACTIVE);
+        safeSetGameState(GameState.ROUND_ACTIVE);
       } else if (segundosAteProxima !== null && segundosAteProxima < 20) {
-        updateGameState(GameState.COUNTDOWN);
-        setRoundTimeLeft(segundosAteProxima);
-      } else if (gameState !== GameState.ROUND_ACTIVE) {
-        updateGameState(GameState.WAITING);
-        setRoundTimeLeft(segundosAteProxima || 20);
+        safeSetGameState(GameState.COUNTDOWN);
+        setRoundTimeLeft(prev => (prev !== segundosAteProxima ? segundosAteProxima : prev));
+      } else {
+        if (gameState !== GameState.ROUND_ACTIVE) {
+          safeSetGameState(GameState.WAITING);
+          setRoundTimeLeft(prev => (prev !== (segundosAteProxima || 20) ? (segundosAteProxima || 20) : prev));
+        }
       }
-
-      updateNextRoundStart(salaAtual.nextRoundStart);
-      updateLastRoundStart(lastStart);
     });
-    return () => unsub && unsub();
-  }, [navigate, aguardandoNovaRodada, updateGameState, updateNextRoundStart, updateLastRoundStart, gameState]);
 
+    return () => {
+      hasRedirectedRef.current = false;
+      unsub && unsub();
+    };
+  }, [navigate, aguardandoNovaRodada, safeSetGameState, safeSetLastRoundStart, safeSetNextRoundStart, gameState]);
+
+  // Timer único controlando o roundTimeLeft, atualizado 1 vez por segundo
   useEffect(() => {
-    if (gameState === GameState.ROUND_ACTIVE && lastRoundStart && sala?.playlist?.length) {
-      if (!roundStartTimeRef.current) {
-        roundStartTimeRef.current = lastRoundStart;
-      }
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
 
-      const totalDuration = (sala.playlist.length * 20 * 1000) + 20000; // Duração da playlist + 20s de intervalo
-      const elapsedTime = Date.now() - roundStartTimeRef.current;
-      const remainingTime = Math.max(0, totalDuration - elapsedTime);
-      const remainingSeconds = Math.floor(remainingTime / 1000);
-
-      setRoundTimeLeft(remainingSeconds);
-
-      const interval = setInterval(() => {
-        const elapsedTime = Date.now() - roundStartTimeRef.current;
-        const remainingTime = Math.max(0, totalDuration - elapsedTime);
-        const remainingSeconds = Math.floor(remainingTime / 1000);
-        setRoundTimeLeft(remainingSeconds);
-      }, 1000);
-
-      return () => {
-        clearInterval(interval);
-      };
-    } else if (gameState === GameState.COUNTDOWN) {
-      const now = Date.now();
-      const segundosAteProxima = nextRoundStart
-        ? Math.max(0, Math.floor((nextRoundStart - now) / 1000))
-        : 20;
-
-      setRoundTimeLeft(segundosAteProxima);
-
-      const interval = setInterval(() => {
+    if ((gameState === GameState.COUNTDOWN || gameState === GameState.ROUND_ACTIVE) && (lastRoundStart || nextRoundStart)) {
+      timerIntervalRef.current = setInterval(() => {
         const now = Date.now();
-        const segundosAteProxima = nextRoundStart
-          ? Math.max(0, Math.floor((nextRoundStart - now) / 1000))
-          : 20;
-        setRoundTimeLeft(segundosAteProxima);
-      }, 1000);
+        let newTimeLeft;
 
-      return () => {
-        clearInterval(interval);
-      };
+        if (gameState === GameState.ROUND_ACTIVE && lastRoundStart && sala?.playlist?.length) {
+          if (!roundStartTimeRef.current) {
+            roundStartTimeRef.current = lastRoundStart;
+          }
+          const totalDuration = (sala.playlist.length * 20 * 1000) + 20000;
+          const elapsedTime = now - roundStartTimeRef.current;
+          const remainingTime = Math.max(0, totalDuration - elapsedTime);
+          newTimeLeft = Math.floor(remainingTime / 1000);
+        } else if (gameState === GameState.COUNTDOWN && nextRoundStart) {
+          newTimeLeft = Math.max(0, Math.floor((nextRoundStart - now) / 1000));
+        }
+
+        setRoundTimeLeft(prev => (prev !== newTimeLeft ? newTimeLeft : prev));
+
+      }, 1000);
     } else {
       setRoundTimeLeft(null);
       roundStartTimeRef.current = null;
     }
-  }, [gameState, lastRoundStart, sala?.playlist?.length, nextRoundStart]);
 
-  const handlePlayAgain = useCallback(() => {
-    console.log('Play again clicked:', {
-      gameState,
-      roundTimeLeft,
-      aguardandoNovaRodada
-    });
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [gameState, lastRoundStart, nextRoundStart, sala?.playlist?.length]);
+
+  // Navegar para game automaticamente ao acabar countdown e flag aguardandoNovaRodada estiver true
+  useEffect(() => {
+    if (roundTimeLeft === 0 && aguardandoNovaRodada) {
+      navigate('/game', { state: { fromRanking: true } });
+    }
+  }, [roundTimeLeft, aguardandoNovaRodada, navigate]);
+
+  // Nova lógica: aguardar roundId mudar para resetar pontos e registrar jogador
+  useEffect(() => {
+    if (aguardandoNovaRodada && typeof resetPointsEverywhere === 'function' && typeof registerPlayerInRanking === 'function') {
+      console.log('[FinalRankingPage] Nova rodada detectada! roundId:', roundId);
+      resetPointsEverywhere();
+      registerPlayerInRanking(0);
+      // safeSetAguardandoNovaRodada(false); // Descomente se quiser resetar flag após registrar
+    }
+  }, [roundId, aguardandoNovaRodada, resetPointsEverywhere, registerPlayerInRanking]);
+
+  // Garante reset ao montar, mesmo se roundId já for o da nova rodada
+  useEffect(() => {
+    if (aguardandoNovaRodada && typeof resetPointsEverywhere === 'function' && typeof registerPlayerInRanking === 'function') {
+      console.log('[FinalRankingPage] (MOUNT) Nova rodada detectada! roundId:', roundId);
+      resetPointsEverywhere();
+      registerPlayerInRanking(0);
+      // safeSetAguardandoNovaRodada(false);
+    }
+    // eslint-disable-next-line
+  }, []);
+  const handlePlayAgain = useCallback(async () => {
     if (aguardandoNovaRodada) return;
-    updateAguardandoNovaRodada(true);
-  }, [aguardandoNovaRodada, gameState, roundTimeLeft, updateAguardandoNovaRodada]);
+    console.log('[FinalRankingPage] Clicou em Jogar Novamente - aguardando nova rodada... (roundId atual:', roundId, ')');
+    safeSetAguardandoNovaRodada(true);
+    // Agora o reset e registro ocorrerão no useEffect acima, assim que roundId mudar!
+  }, [aguardandoNovaRodada, safeSetAguardandoNovaRodada, roundId]);
 
   const handleExit = async () => {
     try {
@@ -290,22 +223,13 @@ export default function FinalRankingPage() {
     } else if (gameState === GameState.ROUND_ACTIVE && roundTimeLeft !== null) {
       const minutos = Math.floor(roundTimeLeft / 60);
       const segundos = roundTimeLeft % 60;
-
-      console.log('GameTimer - Rodada ativa:', {
-        roundTimeLeft,
-        minutos,
-        segundos,
-        roundStartTime: roundStartTimeRef.current ? new Date(roundStartTimeRef.current).toISOString() : 'null',
-        lastRoundStart: lastRoundStart ? new Date(lastRoundStart).toISOString() : 'null'
-      });
-
       return (
         <div className="game-timer smart-timer">
           <div className="timer-label">Rodada em andamento!</div>
           <div className="timer-value">{minutos}m {segundos.toString().padStart(2, '0')}s</div>
         </div>
       );
-    } else if ((gameState === GameState.WAITING) && roundTimeLeft !== null) {
+    } else if (gameState === GameState.WAITING && roundTimeLeft !== null) {
       return (
         <div className="game-timer smart-timer">
           <div className="timer-label">{timerLabel}</div>
@@ -340,7 +264,7 @@ export default function FinalRankingPage() {
           </button>
           <button
             className="final-ranking-btn secondary-btn"
-            onClick={() => updateAguardandoNovaRodada(true)}
+            onClick={() => safeSetAguardandoNovaRodada(true)}
             disabled={aguardandoNovaRodada}
           >
             {aguardandoNovaRodada ? '⏳ Aguardando próxima rodada' : '⏳ Esperar próxima rodada'}
@@ -403,8 +327,8 @@ export default function FinalRankingPage() {
           : player.nickname;
 
         return (
-          <div 
-            key={player.id} 
+          <div
+            key={player.id}
             className={`final-ranking-item ${colorClass} ${isSelf ? 'self-player' : ''}`}
           >
             <span className="final-ranking-pos">{medal || `${idx + 1}º`}</span>

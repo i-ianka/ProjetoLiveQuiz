@@ -148,10 +148,10 @@ export default function StartPage() {
                   aria-label="Fechar"
                 >✖</button>
                 <h2 style={{ color: '#7c3aed', marginBottom: 8 }}>Como jogar?</h2>
-                <ol style={{ marginLeft: 20, marginBottom: 8 }}>
+                <ol style={{ marginLeft: 20, marginBottom: 8,color: '#7c3aed' }}>
                   <li>Digite seu nickname e clique em "Começar Jogo".</li>
                   <li>Escolha entre entrar na rodada atual ou aguardar a próxima.</li>
-                  <li>Ouça a prévia da música e tente adivinhar o artista ou a faixa.</li>
+                  <li>Ouça a prévia da música e tente adivinhar o artista e o nome da faixa.</li>
                   <li>Digite sua resposta antes do tempo acabar!</li>
                   <li>Ao final da rodada, veja seu ranking e prepare-se para a próxima!</li>
                 </ol>
@@ -185,10 +185,10 @@ export default function StartPage() {
                 zIndex: 100
               }}>
                 <h3 style={{ color: '#7c3aed', marginBottom: 4 }}>Sobre o projeto</h3>
-                <p style={{ margin: 0 }}>
+                <p style={{ margin: 0 ,color: '#7c3aed'}}>
                   Este quiz musical foi desenvolvido como um projeto educacional e de entretenimento.<br/>
                   <b>Stack:</b> ReactJS, Firebase Realtime Database, API do Deezer, JavaScript.<br/>
-                  Desenvolvido por <b>Seu Nome</b>.<br/>
+                  Desenvolvido por <b>I Ianka</b>.<br/>
                   Para dúvidas ou sugestões, entre em contato!
                 </p>
               </div>

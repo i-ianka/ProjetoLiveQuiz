@@ -85,18 +85,22 @@
   animation: bg-move 14s linear infinite alternate;
 }
 
-/* Espiral escura animada */
 .login-bg-animated::before {
   content: '';
   position: absolute;
-  left: 0; right: 0; top: 0; bottom: 0;
-  z-index: 1;
-  pointer-events: none;
+  left: 50%;
+  top: 50%;
+  width: 200vmax; /* Usa a maior dimensão da viewport */
+  height: 200vmax;
+  margin: -100vmax; /* Metade do width/height para centralizar */
   background-image:
     repeating-conic-gradient(from 0deg, rgba(167,139,250,0.08) 0deg 20deg, transparent 20deg 40deg),
     repeating-conic-gradient(from 60deg, rgba(124,58,237,0.08) 0deg 12deg, transparent 12deg 30deg);
   opacity: 0.55;
   animation: spiral-move 16s linear infinite;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .nick-suggestion {
