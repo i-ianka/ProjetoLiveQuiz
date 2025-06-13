@@ -139,9 +139,7 @@ export async function avancarMusica(indice) {
   } else if (indice < sala.playlist.length) {
     // Só atualiza musicStartTimestamp se musicaAtual realmente mudou ou se o timestamp está nulo
     if (sala.musicaAtual !== indice || !sala.musicStartTimestamp) {
-      // Usa o tempo atual sem adicionar delay extra
-      // Adiciona um pequeno offset para garantir que o cliente tenha tempo de configurar o áudio
-      updates.musicStartTimestamp = Date.now() + 100; // 100ms para dar tempo do cliente se preparar
+      updates.musicStartTimestamp = Date.now() + 500; // Adiciona 0.5s para compensar atraso de propagação
     } else {
       // Não atualiza para evitar múltiplos resets
       updates.musicStartTimestamp = sala.musicStartTimestamp;
