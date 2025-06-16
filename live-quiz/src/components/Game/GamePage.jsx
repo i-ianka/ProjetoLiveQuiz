@@ -62,27 +62,45 @@ export default function GamePage() {
     }
   }
 
-  const [input, setInput] = useState('');
-  const [feedback, setFeedback] = useState('');
+  // Use refs to manage input state without causing re-renders
+  const inputElementRef = useRef(null);
+  const inputValueRef = useRef('');
+  const [inputValue, setInputValue] = useState(''); // For UI updates only
   const [answered, setAnswered] = useState(false);
   const [currentTimeLeft, setCurrentTimeLeft] = useState(20);
   const [shuffledMusics, setShuffledMusics] = useState([]);
   const [musicEnded, setMusicEnded] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [currentSongIndex, setCurrentSongIndex] = useState(0);
   const [salaInfo, setSalaInfo] = useState(null);
   const [justEntered, setJustEntered] = useState(false);
   const [refreshRankingTrigger, setRefreshRankingTrigger] = useState(0);
   const [attempts, setAttempts] = useState([]); // Histórico de tentativas
+  const [isMuted, setIsMuted] = useState(false); // Estado para controle de mudo
+  const [feedback, setFeedback] = useState(''); // Feedback para o jogador (Correto, Quase, Errou)
 
   const navigate = useNavigate();
-  const inputRef = useRef(null);
   const hasHandledTimeUp = useRef(false);
   const location = useLocation();
   const fromRanking = location.state?.fromRanking;
 
+  // Track previous song index to detect changes
+  const prevSongIndexRef = useRef(-1);
+  
+  // Move currentMusic definition to after the state is initialized
+  const currentMusic = (Array.isArray(shuffledMusics) && shuffledMusics.length > currentSongIndex && currentSongIndex >= 0)
+    ? shuffledMusics[currentSongIndex]
+    : null;
+  
+  // Reset input only when the song actually changes
   useEffect(() => {
-    setInput(''); // Limpa o input ao trocar de música
+    if (currentMusic && prevSongIndexRef.current !== currentSongIndex) {
+      inputValueRef.current = '';
+      setInputValue('');
+      if (inputElementRef.current) {
+        inputElementRef.current.value = '';
+      }
+      prevSongIndexRef.current = currentSongIndex;
+    }
     setAttempts([]); // Limpa histórico ao trocar de música
     setAnswered(false); // Garante input habilitado IMEDIATAMENTE
     // --- RESET DE PONTUAÇÃO AUTOMÁTICO SOMENTE NO INÍCIO REAL DA NOVA RODADA ---
@@ -91,7 +109,7 @@ export default function GamePage() {
     if (salaInfo && salaInfo.musicaAtual > 0) {
       window._jaZerouPontosRodada = false;
     }
-  }, [currentSongIndex, salaInfo]);
+  }, [currentSongIndex, salaInfo, currentMusic, shuffledMusics]);
 
   useEffect(() => {
     if (currentSongIndex === 0) {
@@ -162,9 +180,11 @@ export default function GamePage() {
   }, []);
 
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (inputElementRef.current) {
+      inputElementRef.current.focus();
+      // Make sure the cursor is at the end of the input
+      const length = inputElementRef.current.value.length;
+      inputElementRef.current.setSelectionRange(length, length);
     }
   }, [currentSongIndex, musicEnded]);
 
@@ -193,10 +213,7 @@ export default function GamePage() {
       .trim();
   };
 
-  // Proteção extra para currentMusic
-  const currentMusic = (Array.isArray(shuffledMusics) && shuffledMusics.length > currentSongIndex && currentSongIndex >= 0)
-    ? shuffledMusics[currentSongIndex]
-    : null;
+  // currentMusic is now defined at the top of the component
 
   const musicStartTimestamp = salaInfo?.musicStartTimestamp || null;
 
@@ -319,7 +336,8 @@ export default function GamePage() {
   // Handler de resposta do usuário
   const handleAnswer = () => {
     if (!answered && currentMusic) {
-      const answer = input.trim();
+      const answer = inputValueRef.current.trim();
+      // Don't clear the input here - let the song change handle it
       const title = currentMusic.title.replace(/-/g, ' ');
       const artist = currentMusic.artist?.name?.replace(/-/g, ' ') || '';
       
@@ -355,15 +373,15 @@ export default function GamePage() {
         const correctPart = hasTitle ? 'o título' : 'o artista';
         const missingPart = hasTitle ? 'o artista' : 'o título';
         setFeedback(`Quase lá! Você acertou ${correctPart}, mas falta ${missingPart}!`);
-        setInput('');
+        // Don't clear input here - let the user see their answer
       } else if (hasPartialTitle || hasPartialArtist) {
         // Se a resposta está contida no título ou artista
         const partialMatch = hasPartialTitle ? 'o título' : 'o artista';
         setFeedback(`Você está no caminho certo! Continue tentando acertar ${partialMatch} completo.`);
-        setInput('');
+        // Don't clear input here - let the user see their answer
       } else {
         setFeedback('Errou! Tente novamente!');
-        setInput('');
+        // Don't clear input here - let the user see their answer
       }
     }
   };
@@ -392,12 +410,17 @@ export default function GamePage() {
   const moveToNext = async () => {
     if (currentSongIndex + 1 < shuffledMusics.length) {
       await avancarMusica(currentSongIndex + 1);
-      setInput('');
+      // Don't reset input here - it will be handled by the useEffect that watches currentSongIndex
       setFeedback('');
       setAnswered(false); // Garante input destravado
       setCurrentTimeLeft(20);
       setMusicEnded(false);
       hasHandledTimeUp.current = false;
+      
+      // Focus the input for the next question
+      if (inputElementRef.current) {
+        inputElementRef.current.focus();
+      }
     } else {
       // Atualiza musicaAtual para playlist.length para disparar o efeito de reinício
       await avancarMusica(shuffledMusics.length);
@@ -536,39 +559,45 @@ export default function GamePage() {
                 musicStartTimestamp={salaInfo?.musicStartTimestamp || null}
               />
 
-              <div className="input-with-enter">
-                <input
-                  ref={inputRef}
-                  className={`answer-input dark-mode ${feedback.includes('Correto') ? 'input-correct' : feedback.includes('Quase') ? 'input-almost' : feedback.includes('Errou') ? 'input-wrong' : ''}`}
-                  type="text"
-                  placeholder="Digite sua resposta"
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') handleAnswer();
-                  }}
-                  onPaste={e => e.preventDefault()} // Impede colar
-                  disabled={isInputDisabled}
-                  autoFocus
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  aria-label="Resposta da música"
-                  style={{ fontFamily: 'inherit', fontWeight: 600, letterSpacing: 0.01, outline: 0, borderWidth: 2, borderColor: feedback.includes('Correto') ? '#16a34a' : feedback.includes('Quase') ? '#facc15' : feedback.includes('Errou') ? '#ef4444' : '#64748B', background: isInputDisabled ? 'rgba(15,23,42,0.1)' : 'rgba(15,23,42,0.3)', color: '#E2E8F0', minHeight: 44 }}
-                />
-                <button
-                  className="enter-icon"
-                  title="Enviar resposta"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  type="button"
-                  style={{ background: 'none', border: 'none', outline: 'none', cursor: isInputDisabled ? 'not-allowed' : 'pointer', position: 'absolute', right: '0.7em', top: '50%', transform: 'translateY(-50%)', height: '2.1em', display: 'flex', alignItems: 'center', zIndex: 2, pointerEvents: isInputDisabled ? 'none' : 'auto' }}
-                  onMouseDown={e => { e.preventDefault(); if (!isInputDisabled) handleAnswer(); }}
-                  disabled={isInputDisabled}
-                >
-                  <span className="enter-underline">Enter</span>
-                </button>
-              </div>
+              <input
+                ref={inputElementRef}
+                className={`answer-input dark-mode ${feedback.includes('Correto') ? 'input-correct' : feedback.includes('Quase') ? 'input-almost' : feedback.includes('Errou') ? 'input-wrong' : ''}`}
+                type="text"
+                placeholder="Digite sua resposta"
+                value={inputValue}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  inputValueRef.current = value;
+                  setInputValue(value);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleAnswer();
+                }}
+                onPaste={e => e.preventDefault()}
+                disabled={isInputDisabled}
+                autoFocus
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-label="Resposta da música"
+                style={{ 
+                  fontFamily: 'inherit', 
+                  fontWeight: 600, 
+                  letterSpacing: 0.01, 
+                  outline: 0, 
+                  borderWidth: 2, 
+                  borderColor: feedback.includes('Correto') ? '#16a34a' : 
+                              feedback.includes('Quase') ? '#facc15' : 
+                              feedback.includes('Errou') ? '#ef4444' : '#64748B', 
+                  background: isInputDisabled ? 'rgba(15,23,42,0.1)' : 'rgba(15,23,42,0.3)', 
+                  color: '#E2E8F0', 
+                  minHeight: 44,
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  marginTop: '10px'
+                }}
+              />
               {attempts.length > 0 && (
                 <div className="attempt-history" style={{marginTop: 8, fontSize: '0.97em', color: '#a78bfa', minHeight: 18}}>
                   <span style={{fontWeight: 600}}>Tentativas:</span> {attempts.map((a, i) => <span key={i} style={{marginLeft: 4, marginRight: 4, color: '#fff', background: '#334155', borderRadius: 4, padding: '1px 7px', fontWeight: 500}}>{a}</span>)}
