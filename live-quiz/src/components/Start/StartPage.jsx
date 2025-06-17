@@ -18,6 +18,13 @@ export default function StartPage() {
     'RockStar', 'PopQueen', 'DJMix', 'MCBeats', 'GuitarHero', 'Batera', 'SaxLover', 'PianoKing', 'FunkMaster', 'JazzCat', 'IndieVibes', 'DiscoDuck', 'ReggaeMan', 'MetalHead', 'ChillWave'
   ]);
 
+  // Função para fechar o modal ao clicar fora
+  const handleOverlayClick = (e, setter) => {
+    if (e.target === e.currentTarget) {
+      setter(false);
+    }
+  };
+
   const navigate = useNavigate();
 
   function normalizeForModeration(nick) {
@@ -126,71 +133,155 @@ export default function StartPage() {
           </button>
           {/* Modal de instruções */}
           {showHowToPlay && (
-            <div style={{
-              position: 'fixed',
-              top: 0, left: 0, width: '100vw', height: '100vh',
-              background: 'rgba(60, 30, 120, 0.22)',
-              zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <div style={{
-                background: '#fff',
-                borderRadius: 14,
-                padding: 32,
-                maxWidth: 420,
-                width: '90vw',
-                boxShadow: '0 4px 24px #7c3aed33',
-                position: 'relative',
-                textAlign: 'left'
+            <div 
+              onClick={(e) => handleOverlayClick(e, setShowHowToPlay)}
+              style={{
+                position: 'fixed',
+                top: 0, left: 0, width: '100vw', height: '100vh',
+                background: 'rgba(60, 30, 120, 0.22)',
+                zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
+              <div 
+                style={{
+                  background: '#1e1b4b',
+                  borderRadius: 16,
+                  padding: '32px 28px',
+                  maxWidth: '95%',
+                  width: '90vw',
+                  maxHeight: '90vh',
+                  boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
+                  position: 'relative',
+                  textAlign: 'center',
+                  fontSize: '1.3rem',
+                  lineHeight: '1.8',
+                  color: '#e9d5ff',
+                  border: '1px solid #7c3aed'
+                }}
+                onClick={e => e.stopPropagation()}
+              >
                 <button
                   onClick={() => setShowHowToPlay(false)}
-                  style={{ position: 'absolute', top: 12, right: 18, background: 'none', border: 'none', fontSize: 22, color: '#7c3aed', cursor: 'pointer' }}
+                  style={{ 
+                    position: 'absolute', 
+                    top: 12, 
+                    right: 18, 
+                    background: 'none', 
+                    border: 'none', 
+                    fontSize: 22, 
+                    color: '#a78bfa', 
+                    cursor: 'pointer',
+                    transition: 'color 0.2s'
+                  }}
+                  onMouseOver={(e) => e.target.style.color = '#fff'}
+                  onMouseOut={(e) => e.target.style.color = '#a78bfa'}
                   aria-label="Fechar"
                 >✖</button>
-                <h2 style={{ color: '#7c3aed', marginBottom: 8 }}>Como jogar?</h2>
-                <ol style={{ marginLeft: 20, marginBottom: 8,color: '#7c3aed' }}>
-                  <li>Digite seu nickname e clique em "Começar Jogo".</li>
-                  <li>Escolha entre entrar na rodada atual ou aguardar a próxima.</li>
-                  <li>Ouça a prévia da música e tente adivinhar o artista e o nome da faixa.</li>
-                  <li>Digite sua resposta antes do tempo acabar!</li>
-                  <li>Ao final da rodada, veja seu ranking e prepare-se para a próxima!</li>
-                </ol>
-                <div style={{ color: '#7c3aed', fontWeight: 500, marginTop: 8 }}>
-                  As músicas são prévias oficiais da API do Deezer.<br/>
-                  Para reprodução completa das músicas acesse <a href="https://www.deezer.com" target="_blank" rel="noopener noreferrer" style={{ color: '#5b21b6', textDecoration: 'underline', fontWeight: 600 }}>a Deezer</a>.
+                <div style={{ overflowY: 'auto', padding: '10px', maxHeight: 'calc(90vh - 100px)' }}>
+                  <h2 style={{ color: '#c4b5fd', marginBottom: '20px', fontSize: '2rem', fontWeight: 'bold' }}>Como jogar?</h2>
+                  <ol style={{ margin: '0 auto 20px', color: '#e9d5ff', padding: 0, maxWidth: '700px' }}>
+                    <li style={{ marginBottom: '12px', listStyle: 'none', fontSize: '1.2rem' }}>1. Digite seu nickname e clique em "Começar Jogo".</li>
+                    <li style={{ marginBottom: '12px', listStyle: 'none', fontSize: '1.2rem' }}>2. Escolha entre entrar na rodada atual ou aguardar a próxima.</li>
+                    <li style={{ marginBottom: '12px', listStyle: 'none', fontSize: '1.2rem' }}>3. Ouça a prévia da música e tente adivinhar o artista e o nome da faixa.</li>
+                    <li style={{ marginBottom: '12px', listStyle: 'none', fontSize: '1.2rem' }}>4. Digite sua resposta antes do tempo acabar!</li>
+                    <li style={{ marginBottom: '12px', listStyle: 'none', fontSize: '1.2rem' }}>5. Ao final da rodada, veja seu ranking e prepare-se para a próxima!</li>
+                  </ol>
+                  
+                  <h3 style={{ color: '#c4b5fd', margin: '30px 0 12px 0', fontSize: '1.6rem', fontWeight: 'bold' }}>Pontuação</h3>
+                  <ul style={{ margin: '0 auto 20px', color: '#e9d5ff', padding: 0, maxWidth: '700px' }}>
+                    <li style={{ marginBottom: '10px', listStyle: 'none', fontSize: '1.1rem' }}><strong>🎯 Acertar o artista:</strong> +50% dos pontos do tempo restante</li>
+                    <li style={{ marginBottom: '10px', listStyle: 'none', fontSize: '1.1rem' }}><strong>🎵 Acertar a música:</strong> +50% dos pontos do tempo restante</li>
+                    <li style={{ marginBottom: '10px', listStyle: 'none', fontSize: '1.1rem' }}><strong>🏆 Bônus:</strong> +2 pontos extras por acertar tudo de uma vez!</li>
+                    <li style={{ marginBottom: '10px', listStyle: 'none', fontSize: '1.1rem' }}>⏱️ Quanto mais rápido responder, mais pontos você ganha!</li>
+                  </ul>
+                  
+                  <div style={{ color: '#e9d5ff', fontWeight: 500, margin: '30px auto 10px', maxWidth: '700px' }}>
+                    <div style={{ marginBottom: '12px', fontSize: '1.3rem', fontWeight: 'bold', color: '#c4b5fd' }}>💡 <strong>Dica:</strong> Tente acertar artista e música juntos para ganhar o bônus!</div>
+                    <div style={{ marginBottom: '12px', fontSize: '1.1rem' }}>As músicas são prévias oficiais da API do Deezer.</div>
+                    <div style={{ fontSize: '1.1rem' }}>Para reprodução completa das músicas acesse <a href="https://www.deezer.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa', textDecoration: 'underline', fontWeight: 500 }}>a Deezer</a>.</div>
+                  </div>
                 </div>
               </div>
             </div>
           )}
-          {/* Botão e dropdown para Sobre o Projeto */}
+          {/* Botão para abrir o modal Sobre o Projeto */}
           <div style={{ marginBottom: 16, position: 'relative', width: '100%' }}>
             <button
               className="login-btn"
               style={{ background: '#ede9fe', color: '#7c3aed', fontWeight: 700, width: '100%' }}
-              onClick={() => setShowAbout((v) => !v)}
+              onClick={() => setShowAbout(true)}
             >
               ℹ️ Sobre o projeto
             </button>
+            
+            {/* Modal Sobre o Projeto */}
             {showAbout && (
-              <div style={{
-                background: '#fff',
-                borderRadius: 12,
-                padding: 18,
-                marginTop: 2,
-                boxShadow: '0 4px 16px #7c3aed22',
-                fontSize: 15,
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                zIndex: 100
-              }}>
-                <h3 style={{ color: '#7c3aed', marginBottom: 4 }}>Sobre o projeto</h3>
-                <p style={{ margin: 0 ,color: '#7c3aed'}}>
-                  Este quiz musical foi desenvolvido como um projeto educacional e de entretenimento.<br/>
-                  <b>Stack:</b> ReactJS, Firebase Realtime Database, API do Deezer, JavaScript.<br/>
-                  Desenvolvido por <b>I Ianka</b>.<br/>
-                  Para dúvidas ou sugestões, entre em contato!
-                </p>
+              <div 
+                onClick={(e) => handleOverlayClick(e, setShowAbout)}
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0,0,0,0.7)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 1000,
+                  padding: '16px',
+                  cursor: 'pointer'
+                }}>
+                <div 
+                  style={{
+                    background: '#1e1b4b',
+                    borderRadius: '16px',
+                    padding: '24px',
+                    width: '100%',
+                    maxWidth: '600px',
+                    maxHeight: '90vh',
+                    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
+                    position: 'relative',
+                    textAlign: 'center',
+                    fontSize: '1.3rem',
+                    lineHeight: '1.6',
+                    cursor: 'default',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    color: '#e9d5ff',
+                    border: '1px solid #7c3aed'
+                  }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => setShowAbout(false)}
+                    style={{
+                      position: 'absolute',
+                      top: '12px',
+                      right: '18px',
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '24px',
+                      color: '#a78bfa',
+                      cursor: 'pointer',
+                      zIndex: 10,
+                      transition: 'color 0.2s'
+                    }}
+                    onMouseOver={(e) => e.target.style.color = '#fff'}
+                    onMouseOut={(e) => e.target.style.color = '#a78bfa'}
+                    aria-label="Fechar"
+                  >✖</button>
+                  
+                  <div style={{ overflowY: 'auto', padding: '10px', maxHeight: 'calc(90vh - 100px)' }}>
+                    <h3 style={{ color: '#c4b5fd', marginBottom: '24px', fontSize: '2rem', fontWeight: 'bold' }}>Sobre o projeto</h3>
+                    <div style={{ color: '#e9d5ff', maxWidth: '600px', margin: '0 auto' }}>
+                      <p style={{ margin: '0 0 20px 0', fontSize: '1.2rem' }}>Este quiz musical foi desenvolvido como um projeto educacional e de entretenimento.</p>
+                      <p style={{ margin: '0 0 20px 0', fontSize: '1.2rem' }}><strong style={{ color: '#c4b5fd' }}>Stack:</strong> ReactJS, Firebase Realtime Database, API do Deezer, JavaScript.</p>
+                      <p style={{ margin: '0 0 20px 0', fontSize: '1.2rem' }}><strong style={{ color: '#c4b5fd' }}>Desenvolvido por:</strong> I Ianka</p>
+                      <p style={{ margin: 0, fontSize: '1.2rem' }}>Para dúvidas ou sugestões, entre em contato!</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

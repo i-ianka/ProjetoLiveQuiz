@@ -74,9 +74,14 @@ export default function GamePage() {
   const [salaInfo, setSalaInfo] = useState(null);
   const [justEntered, setJustEntered] = useState(false);
   const [refreshRankingTrigger, setRefreshRankingTrigger] = useState(0);
-  const [attempts, setAttempts] = useState([]); // Histórico de tentativas
+  const [attempts, setAttempts] = useState([]); // Histórico de tentativas do usuário
   const [isMuted, setIsMuted] = useState(false); // Estado para controle de mudo
   const [feedback, setFeedback] = useState(''); // Feedback para o jogador (Correto, Quase, Errou)
+  const [pontosParciais, setPontosParciais] = useState({ artista: false, musica: false }); // Controla o que já foi pontuado
+  const [correctParts, setCorrectParts] = useState({ title: '', artist: '' }); // Partes corretas já identificadas
+  const [inputText, setInputText] = useState(''); // Texto atual do input
+  const [lockedText, setLockedText] = useState(''); // Texto bloqueado (em verde)
+  const [isInputLocked, setIsInputLocked] = useState(false); // Se o input está bloqueado para edição
 
   const navigate = useNavigate();
   const hasHandledTimeUp = useRef(false);
@@ -91,11 +96,18 @@ export default function GamePage() {
     ? shuffledMusics[currentSongIndex]
     : null;
   
-  // Reset input only when the song actually changes
+  // Reset input e estado de pontuação quando a música muda
   useEffect(() => {
     if (currentMusic && prevSongIndexRef.current !== currentSongIndex) {
       inputValueRef.current = '';
       setInputValue('');
+      setInputText('');
+      setLockedText('');
+      setCorrectParts({ title: '', artist: '' });
+      setPontosParciais({ artista: false, musica: false }); // Reseta os pontos parciais
+      setAttempts([]); // Limpa o histórico de tentativas
+      setFeedback(''); // Limpa a mensagem de feedback
+      setIsInputLocked(false);
       if (inputElementRef.current) {
         inputElementRef.current.value = '';
       }
@@ -220,11 +232,14 @@ export default function GamePage() {
   const [gamificationMsg, setGamificationMsg] = useState('');
   const [showGamification, setShowGamification] = useState(false);
   const [gamificationTime, setGamificationTime] = useState(0);
+  const [bonusMessage, setBonusMessage] = useState('');
   
   // Garante sumiço automático após X segundos
   const handleGamificationClose = useCallback(() => {
     console.log('handleGamificationClose chamado');
     setShowGamification(false);
+    setGamificationTime(0);
+    setBonusMessage('');
     
     // Limpa o gamificationTime após a animação de saída
     const timer = setTimeout(() => {
@@ -235,7 +250,7 @@ export default function GamePage() {
   }, []);
   
 
-  const triggerGamification = useCallback((timeLeft, isAnswerCorrect = true) => {
+  const triggerGamification = useCallback((timeLeft, isAnswerCorrect = true, bonusMsg = '') => {
     // Se a resposta estiver incorreta, não mostramos a mensagem de gamificação
     if (!isAnswerCorrect) {
       return;
@@ -243,6 +258,11 @@ export default function GamePage() {
 
     // Usa o tempo exato, sem arredondar, para melhor precisão
     const exactTime = timeLeft;
+    
+    // Se houver mensagem de bônus, armazena
+    if (bonusMsg) {
+      setBonusMessage(bonusMsg);
+    }
     
     // Verifica em qual faixa de tempo o tempo se encaixa
     let shouldShowGamification = false;
@@ -294,20 +314,29 @@ export default function GamePage() {
     };
   }, []);
 
-  // Função para verificar se a resposta contém exatamente o título e o artista, em qualquer ordem
+  // Função para verificar se a resposta está correta
   const checkAnswer = (answer, title, artist) => {
-    if (!answer || !title || !artist) return false;
+    if (!answer || !title) return false;
     
     const cleanAnswer = normalizeText(answer);
     const cleanTitle = normalizeText(title);
-    const cleanArtist = normalizeText(artist);
+    const cleanArtist = artist ? normalizeText(artist) : '';
     
-    // Cria os padrões de busca exatos
-    const pattern1 = `${cleanTitle} ${cleanArtist}`; // Título + Artista
-    const pattern2 = `${cleanArtist} ${cleanTitle}`; // Artista + Título
+    // Verifica se a resposta contém tanto o título quanto o artista (em qualquer ordem)
+    const containsTitle = cleanTitle && cleanAnswer.includes(cleanTitle);
+    const containsArtist = cleanArtist && cleanAnswer.includes(cleanArtist);
     
-    // Verifica se a resposta corresponde exatamente a algum dos padrões
-    return cleanAnswer === pattern1 || cleanAnswer === pattern2;
+    // Se a resposta contém tanto o título quanto o artista, está correto
+    if (containsTitle && containsArtist) {
+      return true;
+    }
+    
+    // Se a resposta é exatamente o título ou o artista, também está correto
+    if (cleanAnswer === cleanTitle || cleanAnswer === cleanArtist) {
+      return true;
+    }
+    
+    return false;
   };
 
   // Função para normalizar e limpar o texto
@@ -333,6 +362,47 @@ export default function GamePage() {
     return normalizeText(text).includes(normalizeText(searchText));
   };
 
+  // Função para verificar e bloquear partes corretas da resposta
+  const updateLockedText = (answer, title, artist) => {
+    const cleanAnswer = normalizeText(answer);
+    const cleanTitle = normalizeText(title);
+    const cleanArtist = artist ? normalizeText(artist) : '';
+    
+    let newLockedText = '';
+    let newInputText = answer;
+    let newCorrectParts = { ...correctParts };
+    let hasTitle = false;
+    let hasArtist = false;
+    
+    // Verifica se a resposta contém o título
+    if (cleanTitle && cleanAnswer.includes(cleanTitle)) {
+      newLockedText = title;
+      newInputText = '';
+      newCorrectParts.title = title;
+      hasTitle = true;
+    }
+    
+    // Verifica se a resposta contém o artista
+    if (cleanArtist && cleanAnswer.includes(cleanArtist)) {
+      if (newLockedText) newLockedText += ' ' + artist;
+      else newLockedText = artist;
+      newInputText = '';
+      newCorrectParts.artist = artist;
+      hasArtist = true;
+    }
+    
+    setLockedText(newLockedText);
+    setInputText(newInputText);
+    setCorrectParts(newCorrectParts);
+    
+    // Se ambos foram acertados, bloqueia o input
+    if (newCorrectParts.title && newCorrectParts.artist) {
+      setIsInputLocked(true);
+    }
+    
+    return { hasTitle, hasArtist };
+  };
+
   // Handler de resposta do usuário
   const handleAnswer = () => {
     if (!answered && currentMusic) {
@@ -341,11 +411,16 @@ export default function GamePage() {
       const title = currentMusic.title.replace(/-/g, ' ');
       const artist = currentMusic.artist?.name?.replace(/-/g, ' ') || '';
       
-      const isCorrect = checkAnswer(answer, title, artist);
-      const hasTitle = checkExactMatch(answer, title);
-      const hasArtist = checkExactMatch(answer, artist);
+      // Atualiza as partes corretas e verifica acertos
+      const { hasTitle, hasArtist } = updateLockedText(answer, title, artist);
+      const currentAnswer = lockedText ? `${lockedText} ${inputText}`.trim() : inputText;
+      
+      // Já temos hasTitle e hasArtist do retorno de updateLockedText
+      const isCorrect = hasTitle && hasArtist;
+      
+      // Verifica acertos parciais (quando o usuário digita apenas parte do título/artista)
       const hasPartialTitle = !hasTitle && answer.length > 2 && containsText(title, answer);
-      const hasPartialArtist = !hasArtist && answer.length > 2 && containsText(artist, answer);
+      const hasPartialArtist = artist && !hasArtist && answer.length > 2 && containsText(artist, answer);
       
       console.log('Resposta:', { 
         answer, 
@@ -358,30 +433,98 @@ export default function GamePage() {
         hasPartialArtist 
       });
       
-      if (isCorrect) {
-        // Pontuação é exatamente igual aos segundos restantes (máximo 20s)
-        const timeLeft = Math.max(0, Math.min(20, Math.floor(currentTimeLeft)));
-        const points = timeLeft; // 1 ponto por segundo restante
+      // Calcula pontos baseado no que foi acertado e no que já foi pontuado
+      let pontosASomar = 0;
+      let feedbackMsg = '';
+      let acertouAlgo = false;
+
+      // Verifica se acertou o artista e ainda não pontuou
+      if (hasArtist && !pontosParciais.artista) {
+        const pontosArtista = Math.ceil(currentTimeLeft * 0.5);
+        pontosASomar += pontosArtista;
+        setPontosParciais(prev => ({ ...prev, artista: true }));
+        // Não adiciona mensagem ainda, vamos verificar se acertou tudo
+        acertouAlgo = true;
+      }
+
+      // Verifica se acertou a música e ainda não pontuou
+      if (hasTitle && !pontosParciais.musica) {
+        const pontosMusica = Math.ceil(currentTimeLeft * 0.5);
+        pontosASomar += pontosMusica;
+        setPontosParciais(prev => ({ ...prev, musica: true }));
+        // Não adiciona mensagem ainda, vamos verificar se acertou tudo
+        acertouAlgo = true;
+      }
+      
+      // Verifica se acertou ambos na mesma tentativa sem ter pontuado antes
+      const acertouTudoAgora = hasArtist && hasTitle && 
+                              !pontosParciais.artista && !pontosParciais.musica;
+      
+      // Se acertou tudo de uma vez (bônus)
+      if (acertouTudoAgora) {
+        const pontosBONUS = 2; // Bônus por acertar tudo de uma vez
+        const pontosTempo = Math.ceil(currentTimeLeft);
         
-        addPoints(points);
-        setFeedback(`Correto! +${points} pontos! (${timeLeft}s)`);
+        // Adiciona os pontos do tempo primeiro
+        addPoints(pontosTempo);
         
-        // Dispara a gamificação apenas se a resposta estiver correta
+        // Cria a mensagem de feedback
+        feedbackMsg = `Acertou tudo! +${pontosTempo} pontos!`;
+        setFeedback(feedbackMsg);
+        
+        // Mostra o efeito de gamificação
         triggerGamification(currentTimeLeft, true);
-      } else if (hasTitle || hasArtist) {
-        // Se acertou apenas um (título ou artista), mas não os dois
-        const correctPart = hasTitle ? 'o título' : 'o artista';
-        const missingPart = hasTitle ? 'o artista' : 'o título';
-        setFeedback(`Quase lá! Você acertou ${correctPart}, mas falta ${missingPart}!`);
-        // Don't clear input here - let the user see their answer
-      } else if (hasPartialTitle || hasPartialArtist) {
-        // Se a resposta está contida no título ou artista
+        
+        // Adiciona o bônus após um pequeno delay para garantir que a primeira mensagem apareça
+        setTimeout(() => {
+          // Adiciona os pontos do bônus
+          addPoints(pontosBONUS);
+          
+          // Atualiza a mensagem para incluir o bônus
+          const mensagemBonus = `🎉 BÔNUS: +${pontosBONUS} por acertar tudo de uma vez!`;
+          setFeedback(`${feedbackMsg}\n${mensagemBonus}`);
+          
+          // Atualiza o feedbackMsg para garantir consistência
+          feedbackMsg = `${feedbackMsg}\n${mensagemBonus}`;
+        }, 500);
+      } 
+      // Se já tinha acertado um e acertou o outro agora (sem bônus)
+      else if (pontosParciais.artista !== hasArtist || pontosParciais.musica !== hasTitle) {
+        if (hasArtist && hasTitle) {
+          feedbackMsg = `Acertou tudo! +${Math.ceil(currentTimeLeft)} pontos!`;
+        } else if (hasArtist) {
+          feedbackMsg = `Acertou o artista! +${Math.ceil(currentTimeLeft * 0.5)} pontos!`;
+        } else if (hasTitle) {
+          feedbackMsg = `Acertou a música! +${Math.ceil(currentTimeLeft * 0.5)} pontos!`;
+        }
+      }
+
+      // Adiciona a tentativa ao histórico
+      setAttempts(prev => [...prev, answer]);
+
+      // Verifica se acertou tudo de uma vez
+      const acertouTudo = isCorrect && !pontosParciais.artista && !pontosParciais.musica;
+      
+      if (acertouTudo) {
+        const pontosTotais = Math.ceil(currentTimeLeft);
+        feedbackMsg = `Acertou tudo! +${pontosTotais} pontos!`;
+        addPoints(pontosTotais);
+        setPontosParciais({ artista: true, musica: true });
+        setFeedback(feedbackMsg);
+        triggerGamification(currentTimeLeft, true);
+      } 
+      // Se acertou alguma parte
+      else if (pontosASomar > 0) {
+        addPoints(pontosASomar);
+        setFeedback(feedbackMsg);
+      } 
+      // Se está no caminho certo (resposta parcial)
+      else if (hasPartialTitle || hasPartialArtist) {
+        // Se a resposta está contida no título ou artista, mas não acertou completo ainda
         const partialMatch = hasPartialTitle ? 'o título' : 'o artista';
         setFeedback(`Você está no caminho certo! Continue tentando acertar ${partialMatch} completo.`);
-        // Don't clear input here - let the user see their answer
-      } else {
+      } else if (answer && !acertouAlgo) {
         setFeedback('Errou! Tente novamente!');
-        // Don't clear input here - let the user see their answer
       }
     }
   };
@@ -401,7 +544,7 @@ export default function GamePage() {
       setTimeout(() => {
         setFeedback('');
         moveToNext();
-      }, 2000);
+      }, 3000); // Aumentado para 3 segundos
     } else {
       moveToNext();
     }
@@ -477,8 +620,20 @@ export default function GamePage() {
   // Função vazia para manter compatibilidade
   const renderGamification = () => null;
 
-  // Novo: input só fica desabilitado se não houver música OU preview OU se já respondeu/tempo acabou (exceto se tempo restante >= 1)
-  const isInputDisabled = !currentMusic || !currentMusic.preview || answered || (musicEnded === true && currentTimeLeft < 1);
+  // Input fica desabilitado apenas se:
+  // 1. Não houver música atual
+  // 2. A música não tiver preview
+  // 3. O jogador já tiver respondido corretamente
+  // 4. A música já tiver terminado E o tempo tiver esgotado
+  const isInputDisabled = !currentMusic || !currentMusic.preview || answered || (musicEnded && currentTimeLeft <= 0);
+
+  // Monitora mudanças na música e no tempo para garantir que o input seja habilitado corretamente
+  useEffect(() => {
+    // Se o tempo for maior que 0 e a música não tiver terminado, garante que o input esteja habilitado
+    if (currentTimeLeft > 0 && !musicEnded && currentMusic?.preview) {
+      setAnswered(false);
+    }
+  }, [currentTimeLeft, musicEnded, currentMusic]);
 
   const prevRoundRef = useRef(null);
 
@@ -502,7 +657,8 @@ export default function GamePage() {
       <GamificationEffect 
         show={showGamification} 
         timeLeft={gamificationTime} 
-        onClose={handleGamificationClose} 
+        onClose={handleGamificationClose}
+        bonusMessage={bonusMessage}
       />
       
       {/* Grid principal */}
@@ -522,7 +678,7 @@ export default function GamePage() {
               Sair da sala
             </button>
 
-            {/* Botão ADMIN: Terminar Partida Instantaneamente */}
+           {/* Botão ADMIN: Terminar Partida Instantaneamente 
             <button
               className="login-btn"
               style={{ marginTop: 16, background: '#f87171', color: '#fff' }}
@@ -530,9 +686,10 @@ export default function GamePage() {
             >
               ⚡ Terminar Partida (admin)
             </button>
+         */}
 
             <div className="game-header dark-mode">
-              <h2>
+              <h2 className="game-title">
                 {salaInfo && salaInfo.musicaAtual >= salaInfo.playlist.length
                   ? 'Rodada finalizada!'
                   : `🎶 Música ${currentSongIndex + 1} de ${shuffledMusics.length}`}
@@ -542,9 +699,7 @@ export default function GamePage() {
             <div className="player-info dark-mode">
               Jogador: <span>{displayAvatar} {displayName}</span>
             </div>
-            <div className="points small-points dark-mode">
-              Pontos: {points === null ? <span style={{color:'#fbbf24'}}>Carregando...</span> : points}
-            </div>
+          
 
             <div className="game-controls dark-mode">
               {/* Sempre renderize o MusicPlayer, controlando apenas as props */}
@@ -559,60 +714,130 @@ export default function GamePage() {
                 musicStartTimestamp={salaInfo?.musicStartTimestamp || null}
               />
 
-              <input
-                ref={inputElementRef}
-                className={`answer-input dark-mode ${feedback.includes('Correto') ? 'input-correct' : feedback.includes('Quase') ? 'input-almost' : feedback.includes('Errou') ? 'input-wrong' : ''}`}
-                type="text"
-                placeholder="Digite sua resposta"
-                value={inputValue}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  inputValueRef.current = value;
-                  setInputValue(value);
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') handleAnswer();
-                }}
-                onPaste={e => e.preventDefault()}
-                disabled={isInputDisabled}
-                autoFocus
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                aria-label="Resposta da música"
-                style={{ 
-                  fontFamily: 'inherit', 
-                  fontWeight: 600, 
-                  letterSpacing: 0.01, 
-                  outline: 0, 
-                  borderWidth: 2, 
-                  borderColor: feedback.includes('Correto') ? '#16a34a' : 
-                              feedback.includes('Quase') ? '#facc15' : 
-                              feedback.includes('Errou') ? '#ef4444' : '#64748B', 
-                  background: isInputDisabled ? 'rgba(15,23,42,0.1)' : 'rgba(15,23,42,0.3)', 
-                  color: '#E2E8F0', 
-                  minHeight: 44,
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  marginTop: '10px'
-                }}
-              />
-              {attempts.length > 0 && (
-                <div className="attempt-history" style={{marginTop: 8, fontSize: '0.97em', color: '#a78bfa', minHeight: 18}}>
-                  <span style={{fontWeight: 600}}>Tentativas:</span> {attempts.map((a, i) => <span key={i} style={{marginLeft: 4, marginRight: 4, color: '#fff', background: '#334155', borderRadius: 4, padding: '1px 7px', fontWeight: 500}}>{a}</span>)}
-                </div>
-              )}
-            </div>
-
-            {feedback && (
-              <div className={`feedback dark-mode ${
-                feedback.includes('Correto') ? 'correct' :
-                feedback.includes('Quase') ? 'almost' : 'wrong'
-              }`}>
-                {feedback}
+              <div className="answer-input-container" style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                alignItems: 'center',
+                minHeight: 44,
+                width: '100%',
+                padding: '2px',
+                borderRadius: '8px',
+                border: '2px solid',
+                borderColor: feedback.includes('Correto') ? '#16a34a' : 
+                            feedback.includes('Quase') ? '#facc15' : 
+                            feedback.includes('Errou') ? '#ef4444' : '#64748B',
+                background: isInputDisabled ? 'rgba(15,23,42,0.1)' : 'rgba(15,23,42,0.3)'
+              }}>
+                {lockedText && (
+                  <span style={{ 
+                    color: '#10b981', 
+                    fontWeight: 600, 
+                    padding: '8px',
+                    whiteSpace: 'pre'
+                  }}>
+                    {lockedText}
+                  </span>
+                )}
+                <input
+                  ref={inputElementRef}
+                  className="answer-input"
+                  type="text"
+                  placeholder={lockedText ? '' : 'Digite sua resposta'}
+                  value={inputText}
+                  onChange={(e) => {
+                    if (!isInputLocked) {
+                      const value = e.target.value;
+                      inputValueRef.current = lockedText ? `${lockedText} ${value}`.trim() : value;
+                      setInputText(value);
+                    }
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleAnswer();
+                    // Impede apagar texto travado com backspace/delete
+                    if ((e.key === 'Backspace' || e.key === 'Delete') && lockedText && !inputText) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onPaste={e => {
+                    e.preventDefault();
+                    if (!isInputLocked) {
+                      const paste = (e.clipboardData || window.clipboardData).getData('text');
+                      const newValue = inputText + paste;
+                      inputValueRef.current = lockedText ? `${lockedText} ${newValue}`.trim() : newValue;
+                      setInputText(newValue);
+                    }
+                  }}
+                  disabled={isInputDisabled || isInputLocked}
+                  autoFocus
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label="Resposta da música"
+                  style={{ 
+                    flex: 1, 
+                    minWidth: '100px',
+                    fontFamily: 'inherit', 
+                    fontWeight: 600, 
+                    letterSpacing: 0.01, 
+                    outline: 'none', 
+                    border: 'none',
+                    background: 'transparent', 
+                    color: '#E2E8F0',
+                    padding: '8px',
+                    margin: 0
+                  }}
+                />
               </div>
-            )}
+              <div style={{marginTop: 12, width: '100%'}}>
+                {feedback && (
+                  <div style={{
+                    color: '#fff',
+                    fontWeight: 500,
+                    marginBottom: attempts.length > 0 ? 8 : 0,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.85em',
+                    backgroundColor: feedback.includes('Errou') ? 'rgba(239, 68, 68, 0.2)' : 
+                                 feedback.includes('caminho certo') ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                    border: `1px solid ${
+                      feedback.includes('Errou') ? '#ef4444' : 
+                      feedback.includes('caminho certo') ? '#f59e0b' : '#10b981'
+                    }`,
+                    whiteSpace: 'pre-line' // Permite quebras de linha no texto
+                  }}>
+                    {feedback}
+                  </div>
+                )}
+                {attempts.length > 0 && (
+                  <div className="attempt-history" style={{ 
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '6px',
+                    alignItems: 'center',
+                    fontSize: '0.9em',
+                    color: '#a78bfa'
+                  }}>
+                    <span style={{fontWeight: 600, color: '#c4b5fd'}}>Tentativas:</span>
+                    {attempts.map((a, i) => (
+                      <span 
+                        key={i} 
+                        style={{
+                          background: '#1e293b',
+                          color: '#e2e8f0',
+                          borderRadius: '12px',
+                          padding: '2px 10px',
+                          fontWeight: 500,
+                          border: '1px solid #334155',
+                          fontSize: '0.88em'
+                        }}
+                      >
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* --- Gamificação visual --- */}
             {renderGamification()}
@@ -637,7 +862,7 @@ export default function GamePage() {
         {/* Coluna da direita - Histórico */}
         <div className="history-column dark-mode">
           <div className="history-card dark-mode">
-            <h3>🎵 Músicas Anteriores</h3>
+            <h3 className="game-title">🎵 Músicas Anteriores</h3>
             <PreviousSongsList songs={previousSongs} />
           </div>
         </div>

@@ -1,11 +1,12 @@
 /* Layout principal */
 .game-page {
   min-height: 100vh;
-  padding: 2rem 0.5rem;
+  padding: 0.8rem 0.5rem;
   background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
   color: #E2E8F0;
   overflow-x: hidden !important;
   margin: 0;
+  font-size: 0.88rem;
 }
 
 html, body, #root, .game-page {
@@ -20,10 +21,11 @@ html, body, #root, .game-page {
 .game-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 1.5rem;
+  gap: 0.8rem;
   width: 100%;
   max-width: 100vw;
   margin: 0 auto;
+  padding: 0 0.25rem;
   overflow-x: hidden !important;
 }
 
@@ -44,9 +46,9 @@ html, body, #root, .game-page {
   background: rgba(30, 41, 59, 0.7);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 1rem;
-  padding: 2.5rem 0.5rem;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  border-radius: 0.7rem;
+  padding: 1rem 0.5rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   font-size: 1.23rem;
   overflow-x: hidden !important;
@@ -65,24 +67,40 @@ html, body, #root, .game-page {
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
 }
 
-.game-header h2 {
-  font-size: clamp(0.8rem, 2.2vw, 1.3rem);
+.game-header h2, .history-card h3.ranking-title {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #a78bfa !important;
+  text-shadow: 0 0 14px rgba(167, 139, 250, 0.3) !important;
+  margin: 0.5rem 0 1rem 0;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  letter-spacing: 0.01em;
+  width: 100%;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.points {
+  font-size: clamp(0.7rem, 1.8vw, 1.1rem);
   font-weight: bold;
   color: #a78bfa;
   text-shadow: 0 0 16px rgba(167, 139, 250, 0.3);
-  margin-bottom: 1rem;
+  margin-bottom: 0.4rem;
 }
 
 .player-info {
-  font-size: clamp(0.9rem, 2.5vw, 1.5rem);
-  color: #94A3B8;
-  margin-bottom: 0.5rem;
-}
-
-.player-info span {
-  font-weight: 600;
-  color: #60A5FA;
-  text-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
+  font-size: 0.85rem;
+  color: #a78bfa;
+  margin: 0.3rem 0 0.6rem 0;
+  text-align: center;
+  width: 100%;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 10px rgba(167, 139, 250, 0.15);
+  line-height: 1.3;
 }
 
 .points {
@@ -102,8 +120,8 @@ html, body, #root, .game-page {
 .game-controls {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  min-height: 200px;
+  gap: 1rem;
+  min-height: 160px;
   justify-content: space-between;
 }
 
@@ -123,13 +141,15 @@ html, body, #root, .game-page {
 .answer-input {
   flex: 1;
   width: 100%;
-  padding: 1em 2.7em 1em 1em; /* padding-right maior para o botão Enter */
-  border: 2px solid rgba(148, 163, 184, 0.1);
-  border-radius: 0.75rem;
+  padding: 0.75em 2.5em 0.75em 0.9em; /* padding-right maior para o botão Enter */
+  border: 1.5px solid rgba(148, 163, 184, 0.1);
+  border-radius: 0.6rem;
   background: rgba(15, 23, 42, 0.3);
   color: #E2E8F0;
-  font-size: clamp(0.8rem, 2vw, 1.25rem);
+  font-size: 0.95rem;
   transition: all 0.2s ease;
+  height: auto;
+  min-height: 2.8em;
 }
 
 .answer-input::placeholder {
@@ -151,19 +171,22 @@ html, body, #root, .game-page {
 
 .enter-icon {
   position: absolute;
-  right: 0.7em;
+  right: 0.5em;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   pointer-events: auto;
   opacity: 1;
-  font-size: 1.04em;
-  height: 2.1em;
+  font-size: 1em;
+  height: 1.8em;
   background: none;
   border: none;
   cursor: pointer;
   z-index: 2;
+  padding: 0.2em 0.5em;
+  border-radius: 0.3em;
+  background: rgba(167, 139, 250, 0.1);
 }
 
 .enter-underline {
@@ -179,19 +202,27 @@ html, body, #root, .game-page {
   color: #7c3aed;
 }
 
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+  width: 100%;
+  margin: 0.3rem 0;
+}
+
 .answer-button {
   width: 100%;
-  padding: 1em;
-  background: linear-gradient(135deg, #34D399 0%, #10B981 100%);
-  color: #fff;
+  padding: 0.7em 1.2em;
+  background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+  color: white;
   border: none;
-  border-radius: 0.75rem;
-  font-size: clamp(0.8rem, 2vw, 1.25rem);
+  border-radius: 0.6rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.1), 0 1px 3px -1px rgba(0, 0, 0, 0.08);
+  margin-top: 0.3rem;
 }
 
 .answer-button:hover {
@@ -212,14 +243,15 @@ html, body, #root, .game-page {
 
 /* Feedback */
 .feedback {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  border-radius: 0.75rem;
+  margin-top: 0.8rem;
+  padding: 0.7rem;
+  border-radius: 0.5rem;
   text-align: center;
   font-weight: 600;
-  font-size: clamp(0.85rem, 2vw, 1.1rem);
+  font-size: 0.85rem;
   animation: fadeIn 0.3s ease;
-  min-height: 50px;
+  min-height: 40px;
+  line-height: 1.3;
 }
 
 .feedback.correct {
@@ -263,11 +295,12 @@ html, body, #root, .game-page {
   position: relative;
   background: rgba(30, 41, 59, 0.98);
   color: white;
-  padding: 20px 30px;
-  border-radius: 12px;
+  padding: 15px 20px;
+  border-radius: 10px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   border: 2px solid rgba(167, 139, 250, 0.5);
   text-align: center;
+  font-size: 0.9em;
   animation: fadeIn 0.5s ease-out;
   transform: translateY(0);
   transition: all 0.3s ease-out;
@@ -448,8 +481,9 @@ html, body, #root, .game-page {
 @media (max-width: 1150px) {
   .game-grid {
     grid-template-columns: 1fr;
-    width: 100vw;
-    max-width: 100vw;
+    width: 100%;
+    max-width: 100%;
+    padding: 0 0.5rem;
     gap: 0.5rem;
     margin: 0;
   }

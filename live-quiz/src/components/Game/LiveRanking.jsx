@@ -32,16 +32,18 @@ export default function LiveRanking({ playerKey, refreshTrigger }) {
     lastRankingRef.current = ranking;
   }, [ranking]);
 
-  const validRanking = ranking.filter(p => {
-    let nick = p.nickname;
-    if (typeof nick === 'object' && nick !== null) {
-      nick = nick.name;
-    }
-    if (typeof nick === 'string') {
-      return nick.trim() !== '';
-    }
-    return false;
-  });
+  // Mantém todos os jogadores, mesmo com nickname vazio ou 0 pontos
+  const validRanking = ranking.map(p => ({
+    ...p,
+    // Garante um nickname padrão se estiver vazio
+    nickname: (() => {
+      let nick = p.nickname;
+      if (typeof nick === 'object' && nick !== null) {
+        nick = nick.name;
+      }
+      return (typeof nick === 'string' && nick.trim() !== '') ? nick : 'Jogador';
+    })()
+  }));
 
   const top15 = validRanking.slice(0, 15);
   const playerIndex = validRanking.findIndex(p => p.id === playerKey);
@@ -60,29 +62,21 @@ export default function LiveRanking({ playerKey, refreshTrigger }) {
 
   return (
     <div className="ranking-card">
-      <h2 className="ranking-title">🏆 Ranking</h2>
+      <h2 className="game-title">🏆 Ranking</h2>
       {playersLeft.length > 0 && (
-        <div style={{
-          background: '#f87171',
-          color: 'white',
-          padding: 8,
-          borderRadius: 6,
-          marginBottom: 12,
-          textAlign: 'center',
-          fontWeight: 500
-        }}>
+        <div className="players-left-message">
           {playersLeft.length === 1
             ? <>Jogador <b>{playersLeft[0]}</b> saiu da sala</>
             : <>Jogadores <b>{playersLeft.join(', ')}</b> saíram da sala</>
           }
         </div>
       )}
-      <div className="ranking-meta" style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
-        <span style={{ fontWeight: 600, color: '#a78bfa', fontSize: 16 }}>
+      <div className="ranking-meta">
+        <span className="players-count">
           {totalPlayers} jogador{totalPlayers !== 1 ? 'es' : ''} na rodada
         </span>
         {playerData && (
-          <span className="user-position" style={{ color: '#7c3aed', fontWeight: 500, fontSize: 15, marginTop: 2 }}>
+          <span className="user-position">
             Sua posição: <b>{playerIndex + 1}º</b> - <b>{safeDisplayName(playerData.nickname)}</b> - <b>{playerData.points}</b> pontos
           </span>
         )}
@@ -93,16 +87,15 @@ export default function LiveRanking({ playerKey, refreshTrigger }) {
             <div 
               key={player.id} 
               className={`ranking-item ${player.id === playerKey ? 'current-player' : ''}`}
-              style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '6px 0', borderBottom: '1px solid #312e8122' }}
             >
-              <span className="ranking-position" style={{ minWidth: 48, textAlign: 'right', fontWeight: 700, color: '#a78bfa', fontSize: 15, flexShrink: 0 }}>{index + 1}º</span>
-              <span className="ranking-name" style={{ flex: 1, fontWeight: 600, color: '#c7d2fe', fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 8px' }}>{safeDisplayName(player.nickname)}</span>
-              <span className="ranking-points" style={{ color: '#a78bfa', fontWeight: 600, fontSize: 15, minWidth: 60, textAlign: 'right', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.points}</span>
+              <span className="ranking-position">{index + 1}º</span>
+              <span className="ranking-name">{safeDisplayName(player.nickname)}</span>
+              <span className="ranking-points">{player.points}</span>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ padding: 16, color: '#ccc', fontStyle: 'italic' }}>
+        <div className="no-players">
           Nenhum jogador na rodada atual.
         </div>
       )}

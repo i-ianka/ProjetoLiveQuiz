@@ -61,7 +61,7 @@ function getEffectByTime(timeLeft) {
   return effect;
 }
 
-export default function GamificationEffect({ show, timeLeft, onClose }) {
+export default function GamificationEffect({ show, timeLeft, onClose, bonusMessage }) {
   const [currentEffect, setCurrentEffect] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
   
@@ -188,7 +188,19 @@ export default function GamificationEffect({ show, timeLeft, onClose }) {
     <div className="gami-overlay">
       <div className="gami-content">
         {currentEffect.showText !== false && (
-          <div className="gami-phrase">{currentEffect.text}</div>
+          <div className="gami-message">
+            <p>{currentEffect.text}</p>
+            {bonusMessage && (
+              <p style={{
+                color: '#fef08a',
+                fontWeight: 'bold',
+                marginTop: '10px',
+                textShadow: '0 0 5px rgba(0,0,0,0.8)'
+              }}>
+                {bonusMessage}
+              </p>
+            )}
+          </div>
         )}
         <div className="gami-animation">
           {currentEffect.animation === 'confetti' && <ConfettiEffect />}
@@ -204,4 +216,5 @@ GamificationEffect.propTypes = {
   show: PropTypes.bool.isRequired,
   timeLeft: PropTypes.number.isRequired,
   onClose: PropTypes.func.isRequired,
+  bonusMessage: PropTypes.string
 };

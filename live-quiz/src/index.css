@@ -46,6 +46,30 @@ body {
   background-color: #6B7280;
 }
 
+/* Estilos de texto padronizados */
+.game-title {
+  font-size: 1.65rem;
+  font-weight: bold;
+  color: #a78bfa !important;
+  text-shadow: 0 0 16px rgba(167, 139, 250, 0.3) !important;
+  margin-bottom: 1.5rem;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  letter-spacing: 0.01em;
+  text-align: center;
+  width: 100%;
+}
+
+.game-subtitle {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #a78bfa !important;
+  text-shadow: 0 0 12px rgba(167, 139, 250, 0.2) !important;
+  margin-bottom: 1rem;
+}
+
 /* Animações */
 .fade-enter {
   opacity: 0;
