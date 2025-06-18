@@ -345,7 +345,8 @@ export default function GamePage() {
     return str
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
       .toLowerCase()
-      .replace(/[^\w\s]/g, '') // Remove caracteres especiais
+      .replace(/&/g, 'e') // Substitui '&' por 'e'
+      .replace(/[^\w\s]/g, '') // Remove outros caracteres especiais
       .replace(/\s+/g, ' ') // Substitui múltiplos espaços por um único
       .trim();
   };
@@ -678,7 +679,7 @@ export default function GamePage() {
               Sair da sala
             </button>
 
-           {/* Botão ADMIN: Terminar Partida Instantaneamente 
+           {/* Botão ADMIN: Terminar Partida Instantaneamente */}
             <button
               className="login-btn"
               style={{ marginTop: 16, background: '#f87171', color: '#fff' }}
@@ -686,7 +687,7 @@ export default function GamePage() {
             >
               ⚡ Terminar Partida (admin)
             </button>
-         */}
+         
 
             <div className="game-header dark-mode">
               <h2 className="game-title">
