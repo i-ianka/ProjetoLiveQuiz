@@ -680,15 +680,14 @@ export default function GamePage() {
             </button>
 
            {/* Botão ADMIN: Terminar Partida Instantaneamente */}
-            <button
+           {/* <button
               className="login-btn"
               style={{ marginTop: 16, background: '#f87171', color: '#fff' }}
               onClick={handleTerminarPartida}
             >
               ⚡ Terminar Partida (admin)
-            </button>
-         
-
+            </button> *
+         */}
             <div className="game-header dark-mode">
               <h2 className="game-title">
                 {salaInfo && salaInfo.musicaAtual >= salaInfo.playlist.length

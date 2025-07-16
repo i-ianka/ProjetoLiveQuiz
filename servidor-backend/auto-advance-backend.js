@@ -33,7 +33,7 @@ async function avancarMusicaBackend() {
   let playlist = sala.playlist;
   const musicStart = sala.musicStartTimestamp || null;
 
-  // --- NOVO: Reiniciar sala se passou o nextRoundStart ---
+  // --- NOVO: Reiniciar sala se passou o nextRoundStart ---13739118261 5207214368
   if (idx >= playlist.length && sala.nextRoundStart && now >= sala.nextRoundStart) {
     const PLAYLIST_ID = sala.playlistId || '13739118261';
   
