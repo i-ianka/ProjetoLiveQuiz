@@ -35,7 +35,7 @@ async function avancarMusicaBackend() {
 
   // --- NOVO: Reiniciar sala se passou o nextRoundStart ---13739118261 5207214368
   if (idx >= playlist.length && sala.nextRoundStart && now >= sala.nextRoundStart) {
-    const PLAYLIST_ID = sala.playlistId || '13739118261';
+    const PLAYLIST_ID = sala.playlistId || '8495648782';
   
     try {
       const response = await fetch(`http://localhost:3000/playlist/${PLAYLIST_ID}`);
