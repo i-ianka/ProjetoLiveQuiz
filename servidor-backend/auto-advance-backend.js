@@ -35,10 +35,11 @@ async function avancarMusicaBackend() {
 
   // --- NOVO: Reiniciar sala se passou o nextRoundStart ---13739118261 5207214368
   if (idx >= playlist.length && sala.nextRoundStart && now >= sala.nextRoundStart) {
-    const PLAYLIST_ID = sala.playlistId || '3443535566';
+    const PLAYLIST_ID = sala.playlistId || '13739118261';
   
     try {
-      const response = await fetch(`http://localhost:3000/playlist/${PLAYLIST_ID}`);
+      const API_URL = process.env.API_URL || 'https://projetolivequiz.onrender.com'; // http://localhost:3000
+const response = await fetch(`${API_URL}/playlist/${PLAYLIST_ID}`);
       const data = await response.json();
   
       if (data && data.tracks && Array.isArray(data.tracks.data)) {

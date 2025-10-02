@@ -695,7 +695,7 @@ export default function GamePage() {
                   : `🎶 Música ${currentSongIndex + 1} de ${shuffledMusics.length}`}
               </h2>
             </div>
-
+            
             <div className="player-info dark-mode">
               Jogador: <span>{displayAvatar} {displayName}</span>
             </div>

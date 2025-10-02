@@ -6,7 +6,7 @@ const app = express();
 const PORT = 3000;
 
 // Configura o CORS
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'] })); // Permite requisições das origens do frontend
+app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175','https://projeto-live-quiz.vercel.app'] })); // Permite requisições das origens do frontend
 
 // Função para normalizar textos
 const normalizeText = (text) => {
@@ -66,3 +66,4 @@ app.get('/playlist/:playlistId', async (req, res) => {
 // Inicializa o servidor
 app.listen(PORT, () => {
 });
+import './auto-advance-backend.js';
