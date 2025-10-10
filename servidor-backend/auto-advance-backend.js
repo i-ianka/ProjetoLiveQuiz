@@ -37,7 +37,7 @@ async function avancarMusicaBackend() {
     const PLAYLIST_ID = sala.playlistId || '13739118261';
   
     try {
-      const API_URL = process.env.API_URL || 'https://projetolivequiz.onrender.com'; // http://localhost:3000
+      const API_URL = import.meta.env.VITE_API_URL || 'https://projetolivequiz.onrender.com'; //   const API_URL = process.env.API_URL || 'http://localhost:'3000';
 const response = await fetch(`${API_URL}/playlist/${PLAYLIST_ID}`);
       const data = await response.json();
   
