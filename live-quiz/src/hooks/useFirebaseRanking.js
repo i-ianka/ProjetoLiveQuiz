@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { ref, onValue, update, get, remove } from 'firebase/database';
-import { db } from '../services/firebase.js';
+import { db } from '../../../shared/firebase/firebase.js';
 import { useGame } from '../hooks/useGame.js';
 
 export function useFirebaseRanking(roundId) {

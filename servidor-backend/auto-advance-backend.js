@@ -1,12 +1,11 @@
 // Backend ES Module para avanço automático das rodadas/músicas no Firebase
 // Rode com: node auto-advance-backend.js
 
-import { firebaseConfig } from '../live-quiz/src/services/firebase.js';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, get, update, set } from 'firebase/database';
+//import { firebaseConfig } from './firebase-proxy.js';
+//import { initializeApp } from 'firebase/app';
+//import { getDatabase, ref, get, update, set } from 'firebase/database';
+import { db, ref, get, update, set } from './firebase-proxy.js';
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
 
 const SALA_REF = ref(db, 'salaAtual');
 

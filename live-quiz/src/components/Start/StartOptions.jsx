@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSalaAtualStartOptions, ouvirSalaStartOptions } from '../../services/firebaseSalaStartOptions';
+import { getSalaAtualStartOptions, ouvirSalaStartOptions } from '../../../../shared/firebase/firebaseSalaStartOptions.js';
 
 export default function StartOptions({ onStart, onBackToLogin }) {
   const [waiting, setWaiting] = useState(false);
@@ -20,7 +20,7 @@ export default function StartOptions({ onStart, onBackToLogin }) {
     getSalaAtualStartOptions().then((s) => {
       setSala(s);
       if (!s || !s.nextRoundStart || s.nextRoundStart < Date.now()) {
-        import('../../services/firebaseSalaService').then(mod => {
+        import('../../../../shared/firebase/firebaseSalaService.js').then(mod => {
           if (mod.garantirNextRoundStartValido) {
             mod.garantirNextRoundStartValido();
           }

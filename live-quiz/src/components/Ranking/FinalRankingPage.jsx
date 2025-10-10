@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../../hooks/useGame'; // Corrigido para importar roundId
 import { useFirebaseRanking } from '../../hooks/useFirebaseRanking';
-import { getSalaAtualFinalRanking, ouvirSalaFinalRanking } from '../../services/firebaseSalaFinalRanking';
+import { getSalaAtualFinalRanking, ouvirSalaFinalRanking } from '../../../../shared/firebase/firebaseSalaFinalRanking.js';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import '../FinalRankingPage.css';
 

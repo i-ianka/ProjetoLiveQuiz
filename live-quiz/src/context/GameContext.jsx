@@ -1,7 +1,7 @@
 // GameContext.jsx atualizado com roundId sincronizado com currentSongIndex e resetGame limpando localStorage
 import { createContext, useContext, useState, useEffect } from 'react';
 import { ref, onValue, update, set, get } from 'firebase/database';
-import { db } from '../services/firebase';
+import { db } from '../../../shared/firebase/firebase';
 
 const GameContext = createContext();
 
